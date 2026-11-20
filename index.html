@@ -3,16 +3,319 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AcadeMax</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#09090b">
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="stylesheet" href="style.css?v=2">
+    <title>AcadeMax — Entrar</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:        #09090b;
+            --bg-card:   #111114;
+            --bg-input:  #1c1c21;
+            --accent:    #6366f1;
+            --accent-g:  rgba(99,102,241,0.15);
+            --text-1:    #f4f4f5;
+            --text-2:    #a1a1aa;
+            --text-3:    #52525b;
+            --border:    rgba(255,255,255,0.07);
+            --r:         12px;
+            --success:   #22c55e;
+            --danger:    #ef4444;
+            --warning:   #f59e0b;
+        }
+        body.light {
+            --bg:       #f8f8fa;
+            --bg-card:  #ffffff;
+            --bg-input: #ebebf0;
+            --text-1:   #18181b;
+            --text-2:   #52525b;
+            --text-3:   #a1a1aa;
+            --border:   rgba(0,0,0,0.08);
+        }
+        body.light[data-accent="indigo"]  { --accent:#6366f1; --accent-g:rgba(99,102,241,0.1); }
+        body.light[data-accent="emerald"] { --accent:#059669; --accent-g:rgba(5,150,105,0.1);  }
+        body.light[data-accent="amber"]   { --accent:#d97706; --accent-g:rgba(217,119,6,0.1);  }
+        body.light[data-accent="rose"]    { --accent:#e11d48; --accent-g:rgba(225,29,72,0.1);  }
+        body.light[data-accent="cyan"]    { --accent:#0891b2; --accent-g:rgba(8,145,178,0.1);  }
+        body[data-accent="emerald"] { --accent:#10b981; --accent-g:rgba(16,185,129,0.15); }
+        body[data-accent="amber"]   { --accent:#f59e0b; --accent-g:rgba(245,158,11,0.15); }
+        body[data-accent="rose"]    { --accent:#f43f5e; --accent-g:rgba(244,63,94,0.15);  }
+        body[data-accent="cyan"]    { --accent:#06b6d4; --accent-g:rgba(6,182,212,0.15);  }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'DM Sans', system-ui, sans-serif;
+            background: var(--bg); color: var(--text-1);
+            min-height: 100vh; display: flex;
+            -webkit-font-smoothing: antialiased;
+        }
+        .hidden { display: none !important; }
+
+        /* ── LADO ESQUERDO ── */
+        .login-side {
+            flex: 1; display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            padding: 48px 24px; min-height: 100vh;
+        }
+        .form-wrapper { width: 100%; max-width: 400px; }
+
+        /* Logo */
+        .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 44px; }
+        .logo svg { width: 32px; height: 32px; }
+        .logo-text { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+        .logo-ade { color: var(--text-1); }
+        .logo-max { color: var(--accent); }
+
+        /* Título da view */
+        .view-title { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; margin-bottom: 28px; letter-spacing: -0.5px; }
+
+        /* Google btn */
+        .google-btn-wrap { margin-bottom: 20px; }
+
+        /* Divisor */
+        .divider {
+            display: flex; align-items: center; gap: 12px;
+            color: var(--text-3); font-size: 12px; font-weight: 500;
+            margin-bottom: 20px;
+        }
+        .divider::before, .divider::after {
+            content: ''; flex: 1; height: 1px; background: var(--border);
+        }
+
+        /* Inputs */
+        .field { margin-bottom: 14px; }
+        .field label { display: block; font-size: 13px; font-weight: 500; color: var(--text-2); margin-bottom: 7px; }
+        .input-wrap { position: relative; }
+        .input-icon {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            color: var(--text-3); font-size: 14px; pointer-events: none; transition: color 0.15s;
+        }
+        .input-wrap:focus-within .input-icon { color: var(--accent); }
+        .toggle-pw {
+            position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+            color: var(--text-3); font-size: 14px; cursor: pointer; transition: color 0.15s;
+        }
+        .toggle-pw:hover { color: var(--accent); }
+        input {
+            width: 100%; background: var(--bg-input); border: 1px solid var(--border);
+            padding: 12px 14px 12px 42px; border-radius: var(--r);
+            color: var(--text-1); font-size: 15px; font-family: 'DM Sans', sans-serif;
+            transition: border-color 0.15s, box-shadow 0.15s; outline: none;
+        }
+        input.no-icon { padding-left: 14px; }
+        input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-g); }
+        input::placeholder { color: var(--text-3); }
+        input[type="date"] { color: var(--text-2); }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        /* Botão primário */
+        .btn-primary {
+            width: 100%; background: var(--accent); color: #fff; border: none;
+            padding: 13px; border-radius: var(--r); font-size: 15px; font-weight: 600;
+            cursor: pointer; margin-top: 6px; display: flex; align-items: center;
+            justify-content: center; gap: 8px; transition: all 0.15s;
+            font-family: 'DM Sans', sans-serif;
+        }
+        .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+        .btn-primary:active { transform: translateY(0); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        /* Links */
+        .links {
+            text-align: center; margin-top: 22px;
+            font-size: 13px; color: var(--text-3);
+        }
+        .links a { color: var(--accent); text-decoration: none; font-weight: 600; cursor: pointer; }
+        .links a:hover { text-decoration: underline; }
+
+        /* ── LADO DIREITO — SHOWCASE ── */
+        .showcase-side {
+            flex: 1.2; display: flex; align-items: center; justify-content: center;
+            background: var(--bg-card); border-left: 1px solid var(--border);
+            padding: 40px; position: relative; overflow: hidden;
+        }
+        .showcase-side::before {
+            content: ''; position: absolute; top: -100px; right: -100px;
+            width: 500px; height: 500px; border-radius: 50%;
+            background: radial-gradient(circle, var(--accent-g) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        /* mockup — cores relativas ao tema */
+        :root {
+            --mock-bg:        #09090b;
+            --mock-card-bg:   #16161a;
+            --mock-border:    rgba(255,255,255,0.07);
+            --mock-line-bg:   rgba(255,255,255,0.08);
+            --mock-icon-bg:   rgba(255,255,255,0.06);
+            --mock-frame:     #222228;
+            --mock-bell:      #52525b;
+            --mock-value-col: #f4f4f5;
+        }
+        body.light {
+            --mock-bg:        #f0f0f4;
+            --mock-card-bg:   #ffffff;
+            --mock-border:    rgba(0,0,0,0.08);
+            --mock-line-bg:   rgba(0,0,0,0.07);
+            --mock-icon-bg:   rgba(0,0,0,0.05);
+            --mock-frame:     #d1d5db;
+            --mock-bell:      #a1a1aa;
+            --mock-value-col: #18181b;
+        }
+
+        .phone-mockup {
+            width: 300px; background: var(--mock-bg);
+            border: 6px solid var(--mock-frame); border-radius: 40px;
+            padding: 28px 18px; box-shadow: 0 40px 80px rgba(0,0,0,0.3);
+            position: relative; z-index: 1;
+        }
+        .mock-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 24px;
+        }
+        .mock-logo { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; color: var(--mock-value-col); }
+        .mock-logo span { color: var(--accent); }
+        .mock-card {
+            background: var(--mock-card-bg); border: 1px solid var(--mock-border);
+            border-radius: 16px; padding: 18px; margin-bottom: 14px;
+        }
+        .mock-label { font-size: 10px; font-weight: 700; color: var(--accent); letter-spacing: 1px; margin-bottom: 8px; }
+        .mock-value { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 14px; color: var(--mock-value-col); }
+        .mock-bar-bg { height: 4px; background: var(--mock-line-bg); border-radius: 10px; overflow: hidden; }
+        .mock-bar-fill { height: 100%; width: 65%; background: var(--accent); border-radius: 10px; }
+        .mock-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .mock-icon-box {
+            width: 36px; height: 36px; border-radius: 10px;
+            background: var(--mock-icon-bg); border: 1px solid var(--mock-border);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--accent); font-size: 14px; flex-shrink: 0;
+        }
+        .mock-lines { flex: 1; }
+        .mock-line { height: 7px; background: var(--mock-line-bg); border-radius: 4px; margin-bottom: 4px; }
+        .mock-line.s { width: 55%; }
+        .mock-row:last-child { margin-bottom: 0; }
+
+        /* Toast */
+        #login-toast {
+            position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(8px);
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r);
+            padding: 11px 18px; display: flex; align-items: center; gap: 10px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.5); z-index: 999;
+            max-width: 92vw; opacity: 0; transition: opacity 0.25s, transform 0.25s;
+            font-size: 14px; font-weight: 500; white-space: nowrap;
+        }
+        #login-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* Modais */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+            backdrop-filter: blur(10px); display: flex; align-items: center;
+            justify-content: center; z-index: 200; padding: 20px;
+        }
+        .modal-box {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 20px; padding: 32px 26px; width: 100%; max-width: 390px;
+            animation: popIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        @keyframes popIn { from { opacity:0; transform:scale(0.9); } to { opacity:1; transform:scale(1); } }
+        .modal-icon {
+            width: 48px; height: 48px; border-radius: 14px;
+            background: var(--accent-g); display: flex; align-items: center;
+            justify-content: center; font-size: 20px; color: var(--accent); margin-bottom: 16px;
+        }
+        .modal-box h2 { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+        .modal-box p  { font-size: 14px; color: var(--text-2); margin-bottom: 20px; line-height: 1.6; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-secondary {
+            flex: 1; background: transparent; border: 1px solid var(--border);
+            color: var(--text-1); padding: 12px; border-radius: var(--r);
+            font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+            font-family: 'DM Sans', sans-serif;
+        }
+        .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Botão tema */
+        .theme-btn {
+            position: fixed; top: 18px; right: 18px;
+            width: 36px; height: 36px; border-radius: 10px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            color: var(--text-2); cursor: pointer; display: flex;
+            align-items: center; justify-content: center; font-size: 15px;
+            z-index: 100; transition: all 0.15s;
+        }
+        .theme-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+        @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+        .form-wrapper { animation: fadeUp 0.4s ease; }
+
+        @media (max-width: 860px) { .showcase-side { display: none; } }
+        @media (max-width: 420px) { .login-side { padding: 40px 16px; justify-content: flex-start; padding-top: 80px; } .grid-2 { grid-template-columns: 1fr; } }
+    </style>
 </head>
 <body data-accent="indigo">
 
-    <header class="app-header">
+<button class="theme-btn" onclick="toggleTheme()" id="theme-btn">
+    <i class="fa-solid fa-sun"></i>
+</button>
+
+<!-- Toast -->
+<div id="login-toast">
+    <i id="toast-icon" class="fa-solid fa-circle-info" style="font-size:16px;flex-shrink:0;"></i>
+    <span id="toast-msg"></span>
+</div>
+
+<!-- Modal: Redefinir senha (via link do email) -->
+<div id="reset-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-icon"><i class="fa-solid fa-key"></i></div>
+        <h2>Nova senha</h2>
+        <p>Digite e confirme sua nova senha abaixo.</p>
+        <div class="field">
+            <label>Nova senha</label>
+            <div class="input-wrap" style="position:relative;">
+                <input type="password" id="reset-password" placeholder="Mínimo 6 caracteres">
+                <i class="fa-solid fa-lock input-icon"></i>
+                <i class="fa-solid fa-eye toggle-pw" onclick="togglePw('reset-password',this)"></i>
+            </div>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+            <label>Confirmar senha</label>
+            <div class="input-wrap" style="position:relative;">
+                <input type="password" id="reset-confirm" placeholder="Repita a senha">
+                <i class="fa-solid fa-lock input-icon"></i>
+                <i class="fa-solid fa-eye toggle-pw" onclick="togglePw('reset-confirm',this)"></i>
+            </div>
+        </div>
+        <button class="btn-primary" id="reset-save-btn" onclick="saveNewPassword()">
+            <i class="fa-solid fa-check"></i> Salvar senha
+        </button>
+    </div>
+</div>
+
+<!-- Modal: Esqueci minha senha -->
+<div id="forgot-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div class="modal-icon"><i class="fa-solid fa-lock-open"></i></div>
+        <h2>Recuperar senha</h2>
+        <p>Digite seu e-mail cadastrado. Se existir uma conta, você receberá as instruções.</p>
+        <div class="field" style="margin-bottom:0;">
+            <label>E-mail</label>
+            <div class="input-wrap">
+                <input type="email" id="forgot-email" placeholder="seu@email.com">
+                <i class="fa-solid fa-envelope input-icon"></i>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-secondary" onclick="closeForgotModal()">Cancelar</button>
+            <button class="btn-primary" id="forgot-send-btn" style="margin-top:0;flex:1.5;" onclick="sendForgotPassword()">
+                <i class="fa-solid fa-paper-plane"></i> Enviar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Lado esquerdo — formulário -->
+<div class="login-side">
+    <div class="form-wrapper">
         <div class="logo">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M20.57 12C20.57 16.78 16.72 20.64 11.73 20.64C6.74 20.64 2.88 16.78 2.88 12" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
@@ -21,451 +324,335 @@
             </svg>
             <div class="logo-text"><span class="logo-ade">ACADE</span><span class="logo-max">MAX</span></div>
         </div>
-        <div class="header-actions">
-            <div class="header-icon" id="theme-btn" onclick="toggleTheme()" title="Alternar tema">
-                <i class="fa-solid fa-sun"></i>
+
+        <!-- VIEW: LOGIN -->
+        <div id="login-view">
+            <h1 class="view-title">Entrar</h1>
+            <div class="google-btn-wrap">
+                <div id="google-btn-container"></div>
             </div>
-            <div class="header-icon" title="Notificações">
-                <i class="fa-solid fa-bell"></i>
+            <div class="divider">ou continue com e-mail</div>
+            <form onsubmit="fazerLogin(event)">
+                <div class="field">
+                    <label>E-mail</label>
+                    <div class="input-wrap">
+                        <input type="email" id="login-email" placeholder="seu@email.com" required>
+                        <i class="fa-solid fa-envelope input-icon"></i>
+                    </div>
+                </div>
+                <div class="field">
+                    <label>Senha</label>
+                    <div class="input-wrap">
+                        <input type="password" id="login-password" placeholder="Sua senha" required>
+                        <i class="fa-solid fa-lock input-icon"></i>
+                        <i class="fa-solid fa-eye toggle-pw" onclick="togglePw('login-password',this)"></i>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary" id="login-btn">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> Entrar
+                </button>
+            </form>
+            <div class="links">
+                <a onclick="openForgotModal()">Esqueci minha senha</a>
+                &nbsp;·&nbsp;
+                Não tem conta? <a onclick="toggle('register')">Cadastre-se</a>
             </div>
         </div>
-    </header>
 
-    <nav class="navbar">
-        <button onclick="navigateTo('dashboard')" class="nav-btn active" data-view="dashboard">
-            <i class="fa-solid fa-grip"></i><span>Início</span>
-        </button>
-        <button onclick="navigateTo('workouts')" class="nav-btn" data-view="workouts">
-            <i class="fa-solid fa-dumbbell"></i><span>Treinos</span>
-        </button>
-        <button onclick="navigateTo('tools')" class="nav-btn" data-view="tools">
-            <i class="fa-solid fa-calculator"></i><span>IMC</span>
-        </button>
-        <button onclick="navigateTo('nutrition')" class="nav-btn" data-view="nutrition">
-            <i class="fa-solid fa-apple-whole"></i><span>Nutrição</span>
-        </button>
-        <button onclick="navigateTo('progression')" class="nav-btn" data-view="progression">
-            <i class="fa-solid fa-chart-line"></i><span>Evolução</span>
-        </button>
-        <button onclick="navigateTo('history')" class="nav-btn" data-view="history">
-            <i class="fa-solid fa-clock-rotate-left"></i><span>Histórico</span>
-        </button>
-        <button onclick="navigateTo('clients')" class="nav-btn" data-view="clients" id="nav-clients" style="display:none;">
-            <i class="fa-solid fa-users"></i><span>Clientes</span>
-        </button>
-        <button onclick="navigateTo('profile')" class="nav-btn" data-view="profile">
-            <i class="fa-solid fa-user"></i><span>Perfil</span>
-        </button>
-    </nav>
-
-    <main class="container">
-
-        <!-- DASHBOARD -->
-        <section id="view-dashboard" class="view active-view">
-            <div class="page-header">
-                <h1>Olá, <span id="user-name">Atleta</span> 👋</h1>
-                <p class="subtitle">Pronto para treinar hoje?</p>
+        <!-- VIEW: CADASTRO -->
+        <div id="register-view" class="hidden">
+            <h1 class="view-title">Criar conta</h1>
+            <div class="google-btn-wrap">
+                <div id="google-btn-container-2"></div>
             </div>
-            <div class="card highlight-card">
-                <p class="card-label"><i class="fa-solid fa-calendar-day" style="margin-right:5px;"></i>Treino de Hoje</p>
-                <h2 id="today-workout">Nenhum treino criado</h2>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                    <button class="btn-primary" onclick="startWorkout()" style="width:auto;padding:10px 20px;">
-                        <i class="fa-solid fa-play"></i> Iniciar
-                    </button>
-                    <button class="btn-ghost" id="resume-btn" style="display:none;width:auto;padding:10px 20px;" onclick="resumeWorkout()">
-                        <i class="fa-solid fa-forward-step"></i> Continuar
-                    </button>
-                </div>
-            </div>
-            <div class="grid-2">
-                <div class="card">
-                    <h3 class="card-label">Treinos Feitos</h3>
-                    <span class="big-number" id="total-workouts">0</span>
-                </div>
-                <div class="card">
-                    <h3 class="card-label">Volume Total</h3>
-                    <span class="big-number" id="total-volume">0</span>
-                    <small style="color:var(--text-3);font-size:12px;">kg</small>
-                </div>
-            </div>
-            <div class="card">
-                <div class="header-flex" style="margin-bottom:12px;">
-                    <h3 class="card-label" style="margin:0;">Volume por Sessão</h3>
-                    <i class="fa-solid fa-weight-scale" style="color:var(--accent);font-size:14px;"></i>
-                </div>
-                <div style="height:180px;position:relative;"><canvas id="weightChart"></canvas></div>
-            </div>
-        </section>
-
-        <!-- IMC -->
-        <section id="view-tools" class="view">
-            <div class="page-header">
-                <h1>Calculadora de IMC</h1>
-                <p class="subtitle">Índice de Massa Corporal e estimativa de gordura.</p>
-            </div>
-            <div class="card">
-                <div class="grid-2" style="margin-bottom:0;">
-                    <div>
-                        <label>Peso (kg)</label>
-                        <input type="number" id="calc-weight" placeholder="70" value="70">
-                    </div>
-                    <div>
-                        <label>Altura (cm)</label>
-                        <input type="number" id="calc-height" placeholder="175" value="175">
+            <div class="divider">ou preencha os dados</div>
+            <form onsubmit="registrarUsuario(event)">
+                <div class="field">
+                    <label>Nome completo</label>
+                    <div class="input-wrap">
+                        <input type="text" id="reg-name" placeholder="João da Silva" required>
+                        <i class="fa-solid fa-user input-icon"></i>
                     </div>
                 </div>
-                <div class="grid-2" style="margin-bottom:0;">
-                    <div>
-                        <label>Idade</label>
-                        <input type="number" id="calc-age" placeholder="25" value="25">
-                    </div>
-                    <div>
-                        <label>Sexo</label>
-                        <select id="calc-gender">
-                            <option value="male">Masculino</option>
-                            <option value="female">Feminino</option>
-                        </select>
+                <div class="field">
+                    <label>E-mail</label>
+                    <div class="input-wrap">
+                        <input type="email" id="reg-email" placeholder="joao@email.com" required>
+                        <i class="fa-solid fa-envelope input-icon"></i>
                     </div>
                 </div>
-                <div class="grid-2" style="margin-bottom:0;">
-                    <div>
-                        <label>Cintura (cm) <small style="color:var(--text-3);">opcional</small></label>
-                        <input type="number" id="calc-waist" placeholder="80">
-                    </div>
-                    <div>
-                        <label>Pescoço (cm) <small style="color:var(--text-3);">opcional</small></label>
-                        <input type="number" id="calc-neck" placeholder="38">
+                <div class="field">
+                    <label>Data de nascimento</label>
+                    <div class="input-wrap">
+                        <input type="date" id="reg-birthdate" required>
+                        <i class="fa-solid fa-calendar input-icon"></i>
                     </div>
                 </div>
-                <button class="btn-primary btn-full" onclick="calculateIMC()">
-                    <i class="fa-solid fa-calculator"></i> Calcular IMC
-                </button>
-            </div>
-            <div id="imc-result" class="card imc-result-card hidden">
-                <h3 class="card-label">Seus Resultados</h3>
-                <div class="imc-grid">
-                    <div>
-                        <span class="label">IMC</span>
-                        <span class="big-number"><span id="res-imc">0</span></span>
-                        <small id="res-imc-class" class="status-tag">--</small>
-                    </div>
-                    <div>
-                        <span class="label">Gordura Corporal</span>
-                        <span class="big-number"><span id="res-fat">--</span><small style="font-size:18px;">%</small></span>
-                        <small id="res-fat-class" class="status-tag">--</small>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- TREINOS -->
-        <section id="view-workouts" class="view">
-            <div class="header-flex">
-                <div>
-                    <h1>Meus Treinos</h1>
-                    <p class="subtitle" style="margin-bottom:0;">Gerencie sua ficha de treinos.</p>
-                </div>
-                <button class="btn-primary" style="width:auto;padding:10px 16px;" onclick="openCreateWorkoutModal()">
-                    <i class="fa-solid fa-plus"></i> Novo
-                </button>
-            </div>
-            <div id="workouts-list" class="workouts-list"></div>
-        </section>
-
-        <!-- TREINO ATIVO -->
-        <section id="view-active-workout" class="view">
-            <div class="active-workout-container">
-                <div class="progress-bar-container">
-                    <div class="progress-bar" id="workout-progress" style="width:0%"></div>
-                </div>
-                <div id="rest-timer" class="rest-timer hidden">
-                    <h3>DESCANSO</h3>
-                    <div class="timer-display" id="timer-display">60</div>
-                    <div class="timer-controls">
-                        <button onclick="adjustTimer(-15)"><i class="fa-solid fa-minus"></i> 15s</button>
-                        <button onclick="adjustTimer(15)">15s <i class="fa-solid fa-plus"></i></button>
-                        <button class="btn-danger" onclick="skipRest()"><i class="fa-solid fa-forward"></i> Pular</button>
-                    </div>
-                </div>
-                <div id="exercise-active-view">
-                    <h2 id="active-exercise-name" style="margin-bottom:4px;">Exercício</h2>
-                    <p class="set-info">Série <span id="active-set-num">1</span> de <span id="active-total-sets">3</span></p>
-                    <div class="grid-2 active-stats">
-                        <div>
-                            <span class="label">Repetições</span>
-                            <input type="number" id="active-reps" value="10">
-                        </div>
-                        <div>
-                            <span class="label">Carga (kg)</span>
-                            <input type="number" id="active-weight" value="20">
-                        </div>
-                    </div>
-                    <button class="btn-success btn-full" onclick="completeSet()">
-                        <i class="fa-solid fa-check"></i> Concluir Série
-                    </button>
-                    <button class="btn-danger-outline btn-full" onclick="confirmFinishWorkout()">
-                        <i class="fa-solid fa-flag-checkered"></i> Finalizar Treino
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <!-- EVOLUÇÃO -->
-        <section id="view-progression" class="view">
-            <div class="page-header">
-                <h1>Evolução</h1>
-                <p class="subtitle">Progressão de carga por exercício.</p>
-            </div>
-            <div class="grid-prog-stats">
-                <div class="card stat-card">
-                    <div>
-                        <h3 class="card-label">Semana</h3>
-                        <span class="big-number" id="stat-week" style="font-size:24px;">0 kg</span>
-                    </div>
-                    <i class="fa-solid fa-calendar-week" style="color:var(--accent);font-size:22px;opacity:0.5;"></i>
-                </div>
-                <div class="card stat-card">
-                    <div>
-                        <h3 class="card-label">Mês</h3>
-                        <span class="big-number" id="stat-month" style="font-size:24px;">0 kg</span>
-                    </div>
-                    <i class="fa-solid fa-calendar" style="color:var(--success);font-size:22px;opacity:0.5;"></i>
-                </div>
-                <div class="card stat-card">
-                    <div>
-                        <h3 class="card-label">Ano</h3>
-                        <span class="big-number" id="stat-year" style="font-size:24px;">0 kg</span>
-                    </div>
-                    <i class="fa-solid fa-trophy" style="color:var(--warning);font-size:22px;opacity:0.5;"></i>
-                </div>
-            </div>
-            <div class="grid-prog-layout">
-                <div>
-                    <div class="card">
-                        <label>Exercício</label>
-                        <select id="progression-select" onchange="loadExerciseProgression(this.value)">
-                            <option value="">Selecione...</option>
-                        </select>
-                    </div>
-                    <div id="progression-stats" class="grid-2 hidden" style="margin-bottom:12px;">
-                        <div class="card">
-                            <h3 class="card-label">Inicial</h3>
-                            <span class="big-number" id="prog-start-weight" style="font-size:22px;color:var(--text-2);">0 kg</span>
-                        </div>
-                        <div class="card">
-                            <h3 class="card-label">Recorde</h3>
-                            <span class="big-number" id="prog-max-weight" style="font-size:22px;">0 kg</span>
-                        </div>
-                    </div>
-                    <div id="progression-list" class="workouts-list"></div>
-                </div>
-                <div class="card chart-card">
-                    <h3 class="card-label">Gráfico de Progressão</h3>
-                    <div class="chart-container"><canvas id="progressionChart"></canvas></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- HISTÓRICO -->
-        <section id="view-history" class="view">
-            <div class="page-header">
-                <h1>Histórico</h1>
-                <p class="subtitle">Todos os treinos realizados.</p>
-            </div>
-            <div id="history-list" class="workouts-list"></div>
-        </section>
-
-        <!-- NUTRIÇÃO -->
-        <section id="view-nutrition" class="view">
-            <div class="page-header">
-                <h1>Nutrição</h1>
-                <p class="subtitle">Gasto calórico e distribuição de macronutrientes.</p>
-            </div>
-            <div class="info-box">
-                <p><i class="fa-solid fa-circle-info" style="color:var(--accent);margin-right:6px;"></i>
-                As informações são educativas e não substituem acompanhamento de nutricionista profissional.</p>
-            </div>
-            <div class="card">
-                <h3 class="card-label" style="margin-bottom:16px;">Calculadora de TDEE</h3>
-                <div class="grid-2" style="margin-bottom:0;">
-                    <div><label>Peso (kg)</label><input type="number" id="nutr-weight" value="70"></div>
-                    <div><label>Altura (cm)</label><input type="number" id="nutr-height" value="175"></div>
-                </div>
-                <div class="grid-2" style="margin-bottom:0;">
-                    <div><label>Idade</label><input type="number" id="nutr-age" value="25"></div>
-                    <div>
-                        <label>Sexo</label>
-                        <select id="nutr-gender">
-                            <option value="male">Masculino</option>
-                            <option value="female">Feminino</option>
-                        </select>
-                    </div>
-                </div>
-                <label>Nível de Atividade</label>
-                <select id="nutr-activity" style="margin-bottom:14px;">
-                    <option value="1.2">Sedentário</option>
-                    <option value="1.375">Levemente ativo (1–3x/sem)</option>
-                    <option value="1.55" selected>Moderado (3–5x/sem)</option>
-                    <option value="1.725">Muito ativo (6–7x/sem)</option>
-                    <option value="1.9">Atleta</option>
-                </select>
-                <label>Objetivo</label>
-                <select id="nutr-goal" style="margin-bottom:20px;">
-                    <option value="cut">Emagrecimento</option>
-                    <option value="maintain" selected>Manutenção</option>
-                    <option value="bulk">Ganho de massa</option>
-                </select>
-                <button class="btn-primary btn-full" onclick="calculateNutrition()">
-                    <i class="fa-solid fa-fire-flame-curved"></i> Calcular
-                </button>
-            </div>
-            <div id="nutr-result" class="hidden">
                 <div class="grid-2">
-                    <div class="card" style="text-align:center;">
-                        <h3 class="card-label">TDEE Base</h3>
-                        <span class="big-number" id="nutr-tdee">0</span>
-                        <small style="color:var(--text-3);font-size:12px;">kcal/dia</small>
+                    <div class="field">
+                        <label>Senha</label>
+                        <div class="input-wrap">
+                            <input type="password" id="reg-password" placeholder="Mín. 6 dígitos" required>
+                            <i class="fa-solid fa-lock input-icon"></i>
+                            <i class="fa-solid fa-eye toggle-pw" onclick="togglePw('reg-password',this)"></i>
+                        </div>
                     </div>
-                    <div class="card" style="text-align:center;border-color:var(--accent-border);">
-                        <h3 class="card-label">Meta</h3>
-                        <span class="big-number" id="nutr-goal-cal">0</span>
-                        <small id="nutr-goal-label" style="color:var(--text-3);font-size:12px;">kcal/dia</small>
-                    </div>
-                </div>
-                <div class="card">
-                    <h3 class="card-label" style="margin-bottom:16px;">Macronutrientes</h3>
-                    <div id="macro-bars"></div>
-                    <div class="grid-2" style="margin-top:16px;gap:10px;">
-                        <div class="macro-card macro-prot">
-                            <span class="macro-label">Proteína</span>
-                            <span class="macro-value" id="macro-prot">0g</span>
-                            <span class="macro-cal" id="macro-prot-cal">0 kcal</span>
-                        </div>
-                        <div class="macro-card macro-carb">
-                            <span class="macro-label">Carboidrato</span>
-                            <span class="macro-value" id="macro-carb">0g</span>
-                            <span class="macro-cal" id="macro-carb-cal">0 kcal</span>
-                        </div>
-                        <div class="macro-card macro-fat">
-                            <span class="macro-label">Gordura</span>
-                            <span class="macro-value" id="macro-fat">0g</span>
-                            <span class="macro-cal" id="macro-fat-cal">0 kcal</span>
-                        </div>
-                        <div class="macro-card macro-water">
-                            <span class="macro-label">Água</span>
-                            <span class="macro-value" id="macro-water">0L</span>
-                            <span class="macro-cal">recomendado/dia</span>
+                    <div class="field">
+                        <label>Confirmar</label>
+                        <div class="input-wrap">
+                            <input type="password" id="reg-confirm-password" placeholder="Repita" required>
+                            <i class="fa-solid fa-lock input-icon"></i>
+                            <i class="fa-solid fa-eye toggle-pw" onclick="togglePw('reg-confirm-password',this)"></i>
                         </div>
                     </div>
                 </div>
-                <div class="card">
-                    <h3 class="card-label" style="margin-bottom:14px;">Dicas</h3>
-                    <div id="nutr-tips"></div>
+                <button type="submit" class="btn-primary" id="register-btn">
+                    <i class="fa-solid fa-user-plus"></i> Criar Conta
+                </button>
+            </form>
+            <div class="links">Já tem conta? <a onclick="toggle('login')">Entrar</a></div>
+        </div>
+
+        <!-- VIEW: MFA -->
+        <div id="mfa-view" class="hidden">
+            <h1 class="view-title">Verificação</h1>
+            <p style="color:var(--text-2);font-size:14px;margin-bottom:20px;">Enviamos um código de 6 dígitos para o seu e-mail.</p>
+            <div class="field">
+                <label>Código de verificação</label>
+                <div class="input-wrap">
+                    <input type="text" id="mfa-code" placeholder="000000" maxlength="6" style="text-align:center;letter-spacing:8px;font-size:24px;">
+                    <i class="fa-solid fa-shield-halved input-icon"></i>
                 </div>
             </div>
-        </section>
+            <button type="button" class="btn-primary" id="mfa-btn" onclick="verifyMFA()">
+                <i class="fa-solid fa-check"></i> Verificar
+            </button>
+            <div class="links"><a onclick="toggle('login')">Voltar</a></div>
+        </div>
+    </div>
+</div>
 
-        <!-- CLIENTES (admin) -->
-        <section id="view-clients" class="view">
-            <div class="page-header">
-                <h1>Clientes</h1>
-                <p class="subtitle">Todos os usuários cadastrados.</p>
+<!-- Lado direito — showcase -->
+<div class="showcase-side">
+    <div class="phone-mockup">
+        <div class="mock-header">
+            <div class="mock-logo">ACADE<span>MAX</span></div>
+            <i class="fa-solid fa-bell" style="color:var(--mock-bell);font-size:16px;"></i>
+        </div>
+        <div class="mock-card">
+            <div class="mock-label">TREINO DE HOJE</div>
+            <div class="mock-value">Treino A — Peito</div>
+            <div class="mock-bar-bg"><div class="mock-bar-fill"></div></div>
+        </div>
+        <div class="mock-card">
+            <div class="mock-label">EVOLUÇÃO</div>
+            <div class="mock-row">
+                <div class="mock-icon-box"><i class="fa-solid fa-dumbbell"></i></div>
+                <div class="mock-lines"><div class="mock-line"></div><div class="mock-line s"></div></div>
             </div>
-            <div id="clients-list" class="workouts-list"></div>
-        </section>
-
-        <section id="view-manage-client" class="view">
-            <div class="header-flex">
-                <h1 id="manage-client-title">Gerenciar</h1>
-                <button class="btn-ghost" style="width:auto;padding:9px 14px;" onclick="navigateTo('clients')">
-                    <i class="fa-solid fa-arrow-left"></i> Voltar
-                </button>
+            <div class="mock-row">
+                <div class="mock-icon-box"><i class="fa-solid fa-chart-line"></i></div>
+                <div class="mock-lines"><div class="mock-line"></div><div class="mock-line s"></div></div>
             </div>
-            <div id="manage-client-content"></div>
-        </section>
-
-        <!-- PERFIL -->
-        <section id="view-profile" class="view"></section>
-
-    </main>
-
-    <!-- MODAL: CRIAR/EDITAR TREINO -->
-    <div id="create-workout-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <h2 id="form-modal-title">Novo Treino</h2>
-            <label>Nome do treino</label>
-            <input type="text" id="new-workout-name" placeholder="Ex: Treino A — Peito">
-            <label>Descrição</label>
-            <input type="text" id="new-workout-desc" placeholder="Ex: Peito, Tríceps e Ombro">
-            <h3>Adicionados (<span id="added-count">0</span>)</h3>
-            <div id="added-exercises-list" class="added-list"></div>
-            <h3>Biblioteca</h3>
-            <div id="exercises-tabs" class="exercises-tabs"></div>
-            <div id="exercises-library" class="exercises-library"></div>
-            <div class="modal-actions">
-                <button class="btn-danger-outline" onclick="closeCreateModal()">Cancelar</button>
-                <button class="btn-primary" id="save-workout-btn" onclick="saveNewWorkout()">
-                    <i class="fa-solid fa-check"></i> Salvar
-                </button>
+            <div class="mock-row">
+                <div class="mock-icon-box"><i class="fa-solid fa-trophy"></i></div>
+                <div class="mock-lines"><div class="mock-line"></div><div class="mock-line s"></div></div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- MODAL: CONFIGURAR EXERCÍCIO -->
-    <div id="exercise-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <h2 id="modal-title">Configurar</h2>
-            <div class="info-box">
-                <p><strong>Séries:</strong> quantas rodadas do exercício você vai fazer.</p>
-                <p><strong>Reps:</strong> quantas repetições por série.</p>
-                <p><strong>Carga:</strong> peso utilizado em kg.</p>
-            </div>
-            <label>Séries</label>
-            <div class="counter">
-                <button onclick="adjustSets(-1)"><i class="fa-solid fa-minus"></i></button>
-                <span id="sets-count">3</span>
-                <button onclick="adjustSets(1)"><i class="fa-solid fa-plus"></i></button>
-            </div>
-            <div id="sets-config-container"></div>
-            <div class="modal-actions">
-                <button class="btn-danger-outline" onclick="closeModal()">Cancelar</button>
-                <button class="btn-primary" onclick="saveExercise()">
-                    <i class="fa-solid fa-plus"></i> Adicionar
-                </button>
-            </div>
-        </div>
-    </div>
+<div id="g_id_onload"
+    data-client_id="681505626161-vn9aiah8dd700qdsb4bolt9qanji49u1.apps.googleusercontent.com"
+    data-callback="handleCredentialResponse"
+    data-auto_prompt="false"
+    data-locale="pt_BR"
+    style="display:none;"></div>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
-    <!-- MODAL: VÍDEO DO YOUTUBE (inline) -->
-    <div id="video-modal" class="video-modal-overlay hidden">
-        <div class="video-modal-box">
-            <div class="video-modal-header">
-                <h3 id="video-modal-title">Exercício</h3>
-                <button class="video-close-btn" onclick="closeVideoModal()">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <div class="video-wrapper">
-                <iframe id="video-iframe" src="" allowfullscreen allow="autoplay; encrypted-media"></iframe>
-            </div>
-        </div>
-    </div>
+<script>
+    const API = 'https://academaxx.com.br/api';
 
-    <!-- DIALOG: CONFIRMAÇÃO CUSTOMIZADA -->
-    <div id="confirm-dialog" class="confirm-dialog-overlay hidden">
-        <div class="confirm-dialog">
-            <div class="confirm-dialog-icon" id="confirm-icon">⚠️</div>
-            <h3 id="confirm-title">Confirmar</h3>
-            <p id="confirm-message">Tem certeza?</p>
-            <div class="confirm-dialog-actions">
-                <button class="btn-ghost" onclick="cancelConfirm()">Cancelar</button>
-                <button class="btn-danger" id="confirm-ok-btn" onclick="executeConfirm()">Confirmar</button>
-            </div>
-        </div>
-    </div>
+    // === TOAST ===
+    function showToast(msg, type = 'info') {
+        const icons  = { success:'fa-circle-check', error:'fa-circle-xmark', info:'fa-circle-info', warning:'fa-triangle-exclamation' };
+        const colors = { success:'#22c55e', error:'#ef4444', info:'var(--accent)', warning:'#f59e0b' };
+        const t = document.getElementById('login-toast');
+        document.getElementById('toast-icon').className = `fa-solid ${icons[type]}`;
+        document.getElementById('toast-icon').style.color = colors[type];
+        document.getElementById('toast-msg').innerText = msg;
+        t.classList.add('show');
+        clearTimeout(t._t);
+        t._t = setTimeout(() => t.classList.remove('show'), 3500);
+    }
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="app.js?v=6"></script>
+    // === LOADING ===
+    function setLoading(btn, on, orig) {
+        if (on) { btn.dataset.orig = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Aguarde...'; btn.disabled = true; }
+        else     { btn.innerHTML = orig || btn.dataset.orig || btn.innerHTML; btn.disabled = false; }
+    }
+
+    // === TEMA ===
+    function toggleTheme() {
+        document.body.classList.toggle('light');
+        const isLight = document.body.classList.contains('light');
+        localStorage.setItem('academax_theme', isLight ? 'light' : 'dark');
+        document.getElementById('theme-btn').innerHTML = `<i class="fa-solid fa-${isLight ? 'moon' : 'sun'}"></i>`;
+    }
+    (function applyTheme() {
+        const accent = localStorage.getItem('academax_accent') || 'indigo';
+        document.body.dataset.accent = accent;
+        if (localStorage.getItem('academax_theme') === 'light') {
+            document.body.classList.add('light');
+            document.getElementById('theme-btn').innerHTML = '<i class="fa-solid fa-moon"></i>';
+        }
+    })();
+
+    // === TOGGLE VIEWS ===
+    let mfaEmail = '';
+    function toggle(view) {
+        document.getElementById('login-view').classList.toggle('hidden', view !== 'login');
+        document.getElementById('register-view').classList.toggle('hidden', view !== 'register');
+        document.getElementById('mfa-view').classList.toggle('hidden', view !== 'mfa');
+    }
+    async function verifyMFA() {
+        const code = document.getElementById('mfa-code').value.trim();
+        if (!code || code.length !== 6) { showToast('Digite o código de 6 dígitos.', 'warning'); return; }
+        const btn = document.getElementById('mfa-btn');
+        const orig = btn.innerHTML;
+        setLoading(btn, true);
+        try {
+            const r = await fetch(`${API}/verify-mfa`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: mfaEmail, code })
+            });
+            const data = await r.json();
+            if (data.error) { showToast(data.error, 'error'); setLoading(btn, false, orig); return; }
+            localStorage.setItem('academax_user', JSON.stringify(data));
+            window.location.href = '/';
+        } catch (e) { showToast('Erro de conexão.', 'error'); }
+        setLoading(btn, false, orig);
+    }
+
+    // === GOOGLE OAUTH ===
+    window.onload = function() {
+        if (window.google) {
+            google.accounts.id.initialize({
+                client_id: '681505626161-vn9aiah8dd700qdsb4bolt9qanji49u1.apps.googleusercontent.com',
+                callback: handleCredentialResponse
+            });
+            const cfg = { theme:'outline', size:'large', shape:'rectangular', width:380, logo_alignment:'left' };
+            google.accounts.id.renderButton(document.getElementById('google-btn-container'),  { ...cfg, text:'continue_with', locale:'pt-BR'  });
+            google.accounts.id.renderButton(document.getElementById('google-btn-container-2'),{ ...cfg, text:'continue_with', locale:'pt-BR' });
+        }
+    };
+    function handleCredentialResponse(response) {
+        const data = JSON.parse(atob(response.credential.split('.')[1]));
+        fetch(`${API}/google-login`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: data.name, email: data.email, picture: data.picture })
+        }).then(r => r.json()).then(user => {
+            if (user.error) { showToast(user.error, 'error'); return; }
+            localStorage.setItem('academax_user', JSON.stringify(user));
+            window.location.href = '/';
+        }).catch(() => showToast('Erro de conexão.', 'error'));
+    }
+
+    // === TOGGLE SENHA ===
+    function togglePw(id, icon) {
+        const inp = document.getElementById(id);
+        const hidden = inp.type === 'password';
+        inp.type = hidden ? 'text' : 'password';
+        icon.className = `fa-solid fa-eye${hidden ? '-slash' : ''} toggle-pw`;
+    }
+
+    // === LOGIN ===
+    function fazerLogin(e) {
+        e.preventDefault();
+        const btn  = document.getElementById('login-btn');
+        const orig = btn.innerHTML;
+        setLoading(btn, true);
+        fetch(`${API}/login`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: document.getElementById('login-email').value, password: document.getElementById('login-password').value })
+        }).then(r => r.json()).then(data => {
+            if (data.error) { showToast(data.error, 'error'); setLoading(btn, false, orig); return; }
+            if (data.requiresMFA) {
+                // MFA ativo — mostra tela de código
+                mfaEmail = data.email;
+                toggle('mfa');
+                showToast('Código enviado para o seu e-mail!', 'info');
+                setLoading(btn, false, orig);
+                return;
+            }
+            localStorage.setItem('academax_user', JSON.stringify(data));
+            window.location.href = '/';
+        }).catch(() => { showToast('Erro de conexão.', 'error'); setLoading(btn, false, orig); });
+    }
+
+    // === CADASTRO ===
+    function registrarUsuario(e) {
+        e.preventDefault();
+        const btn  = document.getElementById('register-btn');
+        const orig = btn.innerHTML;
+        const pw   = document.getElementById('reg-password').value;
+        const conf = document.getElementById('reg-confirm-password').value;
+        if (pw !== conf)   { showToast('As senhas não coincidem!', 'error');  return; }
+        if (pw.length < 6) { showToast('Mínimo 6 caracteres.', 'warning');    return; }
+        setLoading(btn, true);
+        fetch(`${API}/register`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: document.getElementById('reg-name').value, email: document.getElementById('reg-email').value, password: pw, birthdate: document.getElementById('reg-birthdate').value })
+        }).then(r => r.json()).then(data => {
+            if (data.error)   { showToast(data.error, 'error'); setLoading(btn, false, orig); return; }
+            if (data.message) { showToast(data.message, 'success'); setLoading(btn, false, orig); toggle('login'); return; }
+            localStorage.setItem('academax_user', JSON.stringify(data));
+            window.location.href = '/';
+        }).catch(() => { showToast('Erro de conexão.', 'error'); setLoading(btn, false, orig); });
+    }
+
+    // === ESQUECI A SENHA ===
+    function openForgotModal()  { document.getElementById('forgot-modal').classList.remove('hidden'); }
+    function closeForgotModal() { document.getElementById('forgot-modal').classList.add('hidden'); document.getElementById('forgot-email').value = ''; }
+
+    async function sendForgotPassword() {
+        const email = document.getElementById('forgot-email').value.trim();
+        if (!email) { showToast('Digite seu e-mail.', 'warning'); return; }
+        const btn  = document.getElementById('forgot-send-btn');
+        const orig = btn.innerHTML;
+        setLoading(btn, true);
+        try {
+            const r    = await fetch(`${API}/forgot-password`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email}) });
+            const data = await r.json();
+            closeForgotModal();
+            showToast(data.message || data.error || 'E-mail enviado!', data.error ? 'error' : 'success');
+        } catch (e) { showToast('Erro de conexão.', 'error'); }
+        setLoading(btn, false, orig);
+    }
+
+    // === REDEFINIR SENHA (via token na URL) ===
+    const resetToken = new URLSearchParams(window.location.search).get('reset');
+    if (resetToken) document.getElementById('reset-modal').classList.remove('hidden');
+
+    async function saveNewPassword() {
+        const pw   = document.getElementById('reset-password').value;
+        const conf = document.getElementById('reset-confirm').value;
+        if (!pw || !conf)  { showToast('Preencha os dois campos.', 'warning'); return; }
+        if (pw !== conf)   { showToast('As senhas não coincidem!', 'error');   return; }
+        if (pw.length < 6) { showToast('Mínimo 6 caracteres.', 'warning');    return; }
+        const btn  = document.getElementById('reset-save-btn');
+        const orig = btn.innerHTML;
+        setLoading(btn, true);
+        try {
+            const r    = await fetch(`${API}/reset-password`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:resetToken, newPassword:pw}) });
+            const data = await r.json();
+            if (data.error) { showToast(data.error, 'error'); setLoading(btn, false, orig); return; }
+            document.getElementById('reset-modal').classList.add('hidden');
+            showToast('Senha redefinida! Faça login.', 'success');
+            window.history.replaceState({}, '', '/login');
+        } catch (e) { showToast('Erro de conexão.', 'error'); }
+        setLoading(btn, false, orig);
+    }
+</script>
 </body>
 </html>

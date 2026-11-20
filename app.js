@@ -330,6 +330,26 @@ const videoIds = {
     'Abdominal na Polia': 'jDwoBqPH0jk', 'Prancha Lateral': 'ASdvN_8wVSc',
 };
 
+function openVideo(name) {
+    const id = videoIds[name];
+    const modal = document.getElementById('video-modal');
+    const title = document.getElementById('video-modal-title');
+    const iframe = document.getElementById('video-iframe');
+    if (!modal || !iframe) return;
+    if (title) title.innerText = name;
+    iframe.src = id
+        ? `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&hl=pt-BR`
+        : `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent('como fazer ' + name + ' academia')}`;
+    modal.classList.remove('hidden');
+}
+function closeVideoModal() {
+    const modal  = document.getElementById('video-modal');
+    const iframe = document.getElementById('video-iframe');
+    if (modal)  modal.classList.add('hidden');
+    if (iframe) iframe.src = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeVideoModal(); });
+
 const exerciseLibrary = [
     { name: 'Supino Reto com Barra', muscle: 'Peito', img: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&q=80' },
     { name: 'Supino Reto com Halteres', muscle: 'Peito', img: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=100&q=80' },
