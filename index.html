@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AcadeMax</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#09090b">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body data-accent="indigo">
+
+    <header class="app-header">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20.57 12C20.57 16.78 16.72 20.64 11.73 20.64C6.74 20.64 2.88 16.78 2.88 12" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M2.88 12C2.88 7.22 6.74 3.16 11.73 3.16C16.72 3.16 20.57 7.22 20.57 12" stroke="var(--text-1)" stroke-width="2.5" stroke-linecap="round"/>
+                <rect x="9.5" y="2" width="4" height="20" rx="2" fill="var(--accent)"/>
+            </svg>
+            <div class="logo-text"><span class="logo-ade">ACADE</span><span class="logo-max">MAX</span></div>
+        </div>
+        <div class="header-actions">
+            <div class="header-icon" id="theme-btn" onclick="toggleTheme()" title="Alternar tema">
+                <i class="fa-solid fa-sun"></i>
+            </div>
+            <div class="header-icon" title="Notificações">
+                <i class="fa-solid fa-bell"></i>
+            </div>
+        </div>
+    </header>
+
+    <nav class="navbar">
+        <button onclick="navigateTo('dashboard')" class="nav-btn active" data-view="dashboard">
+            <i class="fa-solid fa-grip"></i><span>Início</span>
+        </button>
+        <button onclick="navigateTo('workouts')" class="nav-btn" data-view="workouts">
+            <i class="fa-solid fa-dumbbell"></i><span>Treinos</span>
+        </button>
+        <button onclick="navigateTo('tools')" class="nav-btn" data-view="tools">
+            <i class="fa-solid fa-calculator"></i><span>IMC</span>
+        </button>
+        <button onclick="navigateTo('nutrition')" class="nav-btn" data-view="nutrition">
+            <i class="fa-solid fa-apple-whole"></i><span>Nutrição</span>
+        </button>
+        <button onclick="navigateTo('progression')" class="nav-btn" data-view="progression">
+            <i class="fa-solid fa-chart-line"></i><span>Evolução</span>
+        </button>
+        <button onclick="navigateTo('history')" class="nav-btn" data-view="history">
+            <i class="fa-solid fa-clock-rotate-left"></i><span>Histórico</span>
+        </button>
+        <button onclick="navigateTo('clients')" class="nav-btn" data-view="clients" id="nav-clients" style="display:none;">
+            <i class="fa-solid fa-users"></i><span>Clientes</span>
+        </button>
+        <button onclick="navigateTo('profile')" class="nav-btn" data-view="profile">
+            <i class="fa-solid fa-user"></i><span>Perfil</span>
+        </button>
+    </nav>
+
+    <main class="container">
+
+        <!-- DASHBOARD -->
+        <section id="view-dashboard" class="view active-view">
+            <div class="page-header">
+                <h1>Olá, <span id="user-name">Atleta</span> 👋</h1>
+                <p class="subtitle">Pronto para treinar hoje?</p>
+            </div>
+            <div class="card highlight-card">
+                <p class="card-label"><i class="fa-solid fa-calendar-day" style="margin-right:5px;"></i>Treino de Hoje</p>
+                <h2 id="today-workout">Nenhum treino criado</h2>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn-primary" onclick="startWorkout()" style="width:auto;padding:10px 20px;">
+                        <i class="fa-solid fa-play"></i> Iniciar
+                    </button>
+                    <button class="btn-ghost" id="resume-btn" style="display:none;width:auto;padding:10px 20px;" onclick="resumeWorkout()">
+                        <i class="fa-solid fa-forward-step"></i> Continuar
+                    </button>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="card">
+                    <h3 class="card-label">Treinos Feitos</h3>
+                    <span class="big-number" id="total-workouts">0</span>
+                </div>
+                <div class="card">
+                    <h3 class="card-label">Volume Total</h3>
+                    <span class="big-number" id="total-volume">0</span>
+                    <small style="color:var(--text-3);font-size:12px;">kg</small>
+                </div>
+            </div>
+            <div class="card">
+                <div class="header-flex" style="margin-bottom:12px;">
+                    <h3 class="card-label" style="margin:0;">Volume por Sessão</h3>
+                    <i class="fa-solid fa-weight-scale" style="color:var(--accent);font-size:14px;"></i>
+                </div>
+                <div style="height:180px;position:relative;"><canvas id="weightChart"></canvas></div>
+            </div>
+        </section>
+
+        <!-- IMC -->
+        <section id="view-tools" class="view">
+            <div class="page-header">
+                <h1>Calculadora de IMC</h1>
+                <p class="subtitle">Índice de Massa Corporal e estimativa de gordura.</p>
+            </div>
+            <div class="card">
+                <div class="grid-2" style="margin-bottom:0;">
+                    <div>
+                        <label>Peso (kg)</label>
+                        <input type="number" id="calc-weight" placeholder="70" value="70">
+                    </div>
+                    <div>
+                        <label>Altura (cm)</label>
+                        <input type="number" id="calc-height" placeholder="175" value="175">
+                    </div>
+                </div>
+                <div class="grid-2" style="margin-bottom:0;">
+                    <div>
+                        <label>Idade</label>
+                        <input type="number" id="calc-age" placeholder="25" value="25">
+                    </div>
+                    <div>
+                        <label>Sexo</label>
+                        <select id="calc-gender">
+                            <option value="male">Masculino</option>
+                            <option value="female">Feminino</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid-2" style="margin-bottom:0;">
+                    <div>
+                        <label>Cintura (cm) <small style="color:var(--text-3);">opcional</small></label>
+                        <input type="number" id="calc-waist" placeholder="80">
+                    </div>
+                    <div>
+                        <label>Pescoço (cm) <small style="color:var(--text-3);">opcional</small></label>
+                        <input type="number" id="calc-neck" placeholder="38">
+                    </div>
+                </div>
+                <button class="btn-primary btn-full" onclick="calculateIMC()">
+                    <i class="fa-solid fa-calculator"></i> Calcular IMC
+                </button>
+            </div>
+            <div id="imc-result" class="card imc-result-card hidden">
+                <h3 class="card-label">Seus Resultados</h3>
+                <div class="imc-grid">
+                    <div>
+                        <span class="label">IMC</span>
+                        <span class="big-number"><span id="res-imc">0</span></span>
+                        <small id="res-imc-class" class="status-tag">--</small>
+                    </div>
+                    <div>
+                        <span class="label">Gordura Corporal</span>
+                        <span class="big-number"><span id="res-fat">--</span><small style="font-size:18px;">%</small></span>
+                        <small id="res-fat-class" class="status-tag">--</small>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TREINOS -->
+        <section id="view-workouts" class="view">
+            <div class="header-flex">
+                <div>
+                    <h1>Meus Treinos</h1>
+                    <p class="subtitle" style="margin-bottom:0;">Gerencie sua ficha de treinos.</p>
+                </div>
+                <button class="btn-primary" style="width:auto;padding:10px 16px;" onclick="openCreateWorkoutModal()">
+                    <i class="fa-solid fa-plus"></i> Novo
+                </button>
+            </div>
+            <div id="workouts-list" class="workouts-list"></div>
+        </section>
+
+        <!-- TREINO ATIVO -->
+        <section id="view-active-workout" class="view">
+            <div class="active-workout-container">
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="workout-progress" style="width:0%"></div>
+                </div>
+                <div id="rest-timer" class="rest-timer hidden">
+                    <h3>DESCANSO</h3>
+                    <div class="timer-display" id="timer-display">60</div>
+                    <div class="timer-controls">
+                        <button onclick="adjustTimer(-15)"><i class="fa-solid fa-minus"></i> 15s</button>
+                        <button onclick="adjustTimer(15)">15s <i class="fa-solid fa-plus"></i></button>
+                        <button class="btn-danger" onclick="skipRest()"><i class="fa-solid fa-forward"></i> Pular</button>
+                    </div>
+                </div>
+                <div id="exercise-active-view">
+                    <h2 id="active-exercise-name" style="margin-bottom:4px;">Exercício</h2>
+                    <p class="set-info">Série <span id="active-set-num">1</span> de <span id="active-total-sets">3</span></p>
+                    <div class="grid-2 active-stats">
+                        <div>
+                            <span class="label">Repetições</span>
+                            <input type="number" id="active-reps" value="10">
+                        </div>
+                        <div>
+                            <span class="label">Carga (kg)</span>
+                            <input type="number" id="active-weight" value="20">
+                        </div>
+                    </div>
+                    <button class="btn-success btn-full" onclick="completeSet()">
+                        <i class="fa-solid fa-check"></i> Concluir Série
+                    </button>
+                    <button class="btn-danger-outline btn-full" onclick="confirmFinishWorkout()">
+                        <i class="fa-solid fa-flag-checkered"></i> Finalizar Treino
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- EVOLUÇÃO -->
+        <section id="view-progression" class="view">
+            <div class="page-header">
+                <h1>Evolução</h1>
+                <p class="subtitle">Progressão de carga por exercício.</p>
+            </div>
+            <div class="grid-prog-stats">
+                <div class="card stat-card">
+                    <div>
+                        <h3 class="card-label">Semana</h3>
+                        <span class="big-number" id="stat-week" style="font-size:24px;">0 kg</span>
+                    </div>
+                    <i class="fa-solid fa-calendar-week" style="color:var(--accent);font-size:22px;opacity:0.5;"></i>
+                </div>
+                <div class="card stat-card">
+                    <div>
+                        <h3 class="card-label">Mês</h3>
+                        <span class="big-number" id="stat-month" style="font-size:24px;">0 kg</span>
+                    </div>
+                    <i class="fa-solid fa-calendar" style="color:var(--success);font-size:22px;opacity:0.5;"></i>
+                </div>
+                <div class="card stat-card">
+                    <div>
+                        <h3 class="card-label">Ano</h3>
+                        <span class="big-number" id="stat-year" style="font-size:24px;">0 kg</span>
+                    </div>
+                    <i class="fa-solid fa-trophy" style="color:var(--warning);font-size:22px;opacity:0.5;"></i>
+                </div>
+            </div>
+            <div class="grid-prog-layout">
+                <div>
+                    <div class="card">
+                        <label>Exercício</label>
+                        <select id="progression-select" onchange="loadExerciseProgression(this.value)">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                    <div id="progression-stats" class="grid-2 hidden" style="margin-bottom:12px;">
+                        <div class="card">
+                            <h3 class="card-label">Inicial</h3>
+                            <span class="big-number" id="prog-start-weight" style="font-size:22px;color:var(--text-2);">0 kg</span>
+                        </div>
+                        <div class="card">
+                            <h3 class="card-label">Recorde</h3>
+                            <span class="big-number" id="prog-max-weight" style="font-size:22px;">0 kg</span>
+                        </div>
+                    </div>
+                    <div id="progression-list" class="workouts-list"></div>
+                </div>
+                <div class="card chart-card">
+                    <h3 class="card-label">Gráfico de Progressão</h3>
+                    <div class="chart-container"><canvas id="progressionChart"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- HISTÓRICO -->
+        <section id="view-history" class="view">
+            <div class="page-header">
+                <h1>Histórico</h1>
+                <p class="subtitle">Todos os treinos realizados.</p>
+            </div>
+            <div id="history-list" class="workouts-list"></div>
+        </section>
+
+        <!-- NUTRIÇÃO -->
+        <section id="view-nutrition" class="view">
+            <div class="page-header">
+                <h1>Nutrição</h1>
+                <p class="subtitle">Gasto calórico e distribuição de macronutrientes.</p>
+            </div>
+            <div class="info-box">
+                <p><i class="fa-solid fa-circle-info" style="color:var(--accent);margin-right:6px;"></i>
+                As informações são educativas e não substituem acompanhamento de nutricionista profissional.</p>
+            </div>
+            <div class="card">
+                <h3 class="card-label" style="margin-bottom:16px;">Calculadora de TDEE</h3>
+                <div class="grid-2" style="margin-bottom:0;">
+                    <div><label>Peso (kg)</label><input type="number" id="nutr-weight" value="70"></div>
+                    <div><label>Altura (cm)</label><input type="number" id="nutr-height" value="175"></div>
+                </div>
+                <div class="grid-2" style="margin-bottom:0;">
+                    <div><label>Idade</label><input type="number" id="nutr-age" value="25"></div>
+                    <div>
+                        <label>Sexo</label>
+                        <select id="nutr-gender">
+                            <option value="male">Masculino</option>
+                            <option value="female">Feminino</option>
+                        </select>
+                    </div>
+                </div>
+                <label>Nível de Atividade</label>
+                <select id="nutr-activity" style="margin-bottom:14px;">
+                    <option value="1.2">Sedentário</option>
+                    <option value="1.375">Levemente ativo (1–3x/sem)</option>
+                    <option value="1.55" selected>Moderado (3–5x/sem)</option>
+                    <option value="1.725">Muito ativo (6–7x/sem)</option>
+                    <option value="1.9">Atleta</option>
+                </select>
+                <label>Objetivo</label>
+                <select id="nutr-goal" style="margin-bottom:20px;">
+                    <option value="cut">Emagrecimento</option>
+                    <option value="maintain" selected>Manutenção</option>
+                    <option value="bulk">Ganho de massa</option>
+                </select>
+                <button class="btn-primary btn-full" onclick="calculateNutrition()">
+                    <i class="fa-solid fa-fire-flame-curved"></i> Calcular
+                </button>
+            </div>
+            <div id="nutr-result" class="hidden">
+                <div class="grid-2">
+                    <div class="card" style="text-align:center;">
+                        <h3 class="card-label">TDEE Base</h3>
+                        <span class="big-number" id="nutr-tdee">0</span>
+                        <small style="color:var(--text-3);font-size:12px;">kcal/dia</small>
+                    </div>
+                    <div class="card" style="text-align:center;border-color:var(--accent-border);">
+                        <h3 class="card-label">Meta</h3>
+                        <span class="big-number" id="nutr-goal-cal">0</span>
+                        <small id="nutr-goal-label" style="color:var(--text-3);font-size:12px;">kcal/dia</small>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3 class="card-label" style="margin-bottom:16px;">Macronutrientes</h3>
+                    <div id="macro-bars"></div>
+                    <div class="grid-2" style="margin-top:16px;gap:10px;">
+                        <div class="macro-card macro-prot">
+                            <span class="macro-label">Proteína</span>
+                            <span class="macro-value" id="macro-prot">0g</span>
+                            <span class="macro-cal" id="macro-prot-cal">0 kcal</span>
+                        </div>
+                        <div class="macro-card macro-carb">
+                            <span class="macro-label">Carboidrato</span>
+                            <span class="macro-value" id="macro-carb">0g</span>
+                            <span class="macro-cal" id="macro-carb-cal">0 kcal</span>
+                        </div>
+                        <div class="macro-card macro-fat">
+                            <span class="macro-label">Gordura</span>
+                            <span class="macro-value" id="macro-fat">0g</span>
+                            <span class="macro-cal" id="macro-fat-cal">0 kcal</span>
+                        </div>
+                        <div class="macro-card macro-water">
+                            <span class="macro-label">Água</span>
+                            <span class="macro-value" id="macro-water">0L</span>
+                            <span class="macro-cal">recomendado/dia</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3 class="card-label" style="margin-bottom:14px;">Dicas</h3>
+                    <div id="nutr-tips"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CLIENTES (admin) -->
+        <section id="view-clients" class="view">
+            <div class="page-header">
+                <h1>Clientes</h1>
+                <p class="subtitle">Todos os usuários cadastrados.</p>
+            </div>
+            <div id="clients-list" class="workouts-list"></div>
+        </section>
+
+        <section id="view-manage-client" class="view">
+            <div class="header-flex">
+                <h1 id="manage-client-title">Gerenciar</h1>
+                <button class="btn-ghost" style="width:auto;padding:9px 14px;" onclick="navigateTo('clients')">
+                    <i class="fa-solid fa-arrow-left"></i> Voltar
+                </button>
+            </div>
+            <div id="manage-client-content"></div>
+        </section>
+
+        <!-- PERFIL -->
+        <section id="view-profile" class="view"></section>
+
+    </main>
+
+    <!-- MODAL: CRIAR/EDITAR TREINO -->
+    <div id="create-workout-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 id="form-modal-title">Novo Treino</h2>
+            <label>Nome do treino</label>
+            <input type="text" id="new-workout-name" placeholder="Ex: Treino A — Peito">
+            <label>Descrição</label>
+            <input type="text" id="new-workout-desc" placeholder="Ex: Peito, Tríceps e Ombro">
+            <h3>Adicionados (<span id="added-count">0</span>)</h3>
+            <div id="added-exercises-list" class="added-list"></div>
+            <h3>Biblioteca</h3>
+            <div id="exercises-tabs" class="exercises-tabs"></div>
+            <div id="exercises-library" class="exercises-library"></div>
+            <div class="modal-actions">
+                <button class="btn-danger-outline" onclick="closeCreateModal()">Cancelar</button>
+                <button class="btn-primary" id="save-workout-btn" onclick="saveNewWorkout()">
+                    <i class="fa-solid fa-check"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CONFIGURAR EXERCÍCIO -->
+    <div id="exercise-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 id="modal-title">Configurar</h2>
+            <div class="info-box">
+                <p><strong>Séries:</strong> quantas rodadas do exercício você vai fazer.</p>
+                <p><strong>Reps:</strong> quantas repetições por série.</p>
+                <p><strong>Carga:</strong> peso utilizado em kg.</p>
+            </div>
+            <label>Séries</label>
+            <div class="counter">
+                <button onclick="adjustSets(-1)"><i class="fa-solid fa-minus"></i></button>
+                <span id="sets-count">3</span>
+                <button onclick="adjustSets(1)"><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <div id="sets-config-container"></div>
+            <div class="modal-actions">
+                <button class="btn-danger-outline" onclick="closeModal()">Cancelar</button>
+                <button class="btn-primary" onclick="saveExercise()">
+                    <i class="fa-solid fa-plus"></i> Adicionar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: VÍDEO DO YOUTUBE (inline) -->
+    <div id="video-modal" class="video-modal-overlay hidden">
+        <div class="video-modal-box">
+            <div class="video-modal-header">
+                <h3 id="video-modal-title">Exercício</h3>
+                <button class="video-close-btn" onclick="closeVideoModal()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="video-wrapper">
+                <iframe id="video-iframe" src="" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- DIALOG: CONFIRMAÇÃO CUSTOMIZADA -->
+    <div id="confirm-dialog" class="confirm-dialog-overlay hidden">
+        <div class="confirm-dialog">
+            <div class="confirm-dialog-icon" id="confirm-icon">⚠️</div>
+            <h3 id="confirm-title">Confirmar</h3>
+            <p id="confirm-message">Tem certeza?</p>
+            <div class="confirm-dialog-actions">
+                <button class="btn-ghost" onclick="cancelConfirm()">Cancelar</button>
+                <button class="btn-danger" id="confirm-ok-btn" onclick="executeConfirm()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js?v=6"></script>
+</body>
+</html>
