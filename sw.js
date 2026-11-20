@@ -1,5 +1,5 @@
 // Service Worker — AcadeMax PWA
-const CACHE_NAME = 'academax-v3';
+const CACHE_NAME = 'academax-v2';
 const ASSETS = [
   '/', '/index.html', '/login.html', '/style.css', '/app.js', '/manifest.json',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',
