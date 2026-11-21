@@ -1135,13 +1135,13 @@ function toggleHealthCard(el) {
 
 function selectObjetivo(value) {
     selectedObjetivo = value;
-    document.querySelectorAll('.objetivo-btn').forEach(b => b.classList.remove('selected'));
-    event.target.closest('.objetivo-btn').classList.add('selected');
+    document.querySelectorAll('.objetivo-card').forEach(b => b.classList.remove('selected'));
+    event.target.closest('.objetivo-card').classList.add('selected');
 }
 function selectNivel(value) {
     selectedNivel = value;
-    document.querySelectorAll('.nivel-btn').forEach(b => b.classList.remove('selected'));
-    event.target.closest('.nivel-btn').classList.add('selected');
+    document.querySelectorAll('.nivel-card').forEach(b => b.classList.remove('selected'));
+    event.target.closest('.nivel-card').classList.add('selected');
 }
 
 async function saveFicha() {
