@@ -362,6 +362,24 @@
             <div class="google-btn-wrap">
                 <div id="google-btn-container-2"></div>
             </div>
+
+<!-- VIEW: VERIFICAÇÃO DE CADASTRO -->
+<div id="verify-view" class="hidden">
+    <h1 class="view-title">Confirme seu e-mail</h1>
+    <p style="color:var(--text-2);font-size:14px;margin-bottom:20px;">Enviamos um código de 6 dígitos para o seu e-mail. Digite abaixo para confirmar seu cadastro.</p>
+    <div class="field">
+        <label>Código de verificação</label>
+        <div class="input-wrap">
+            <input type="text" id="verify-code" placeholder="000000" maxlength="6" style="text-align:center;letter-spacing:8px;font-size:24px;">
+            <i class="fa-solid fa-envelope-circle-check input-icon"></i>
+        </div>
+    </div>
+    <button type="button" class="btn-primary" id="verify-btn" onclick="verifyRegistration()">
+        <i class="fa-solid fa-check"></i> Confirmar Cadastro
+    </button>
+    <div class="links"><a onclick="toggle('register')">Voltar</a></div>
+</div>
+
             <div class="divider">ou preencha os dados</div>
             <form onsubmit="registrarUsuario(event)">
                 <div class="field">
@@ -507,10 +525,11 @@
 
     // === TOGGLE VIEWS ===
     let mfaEmail = '';
-    function toggle(view) {
+     function toggle(view) {
         document.getElementById('login-view').classList.toggle('hidden', view !== 'login');
         document.getElementById('register-view').classList.toggle('hidden', view !== 'register');
         document.getElementById('mfa-view').classList.toggle('hidden', view !== 'mfa');
+        document.getElementById('verify-view').classList.toggle('hidden', view !== 'verify');
     }
     async function verifyMFA() {
         const code = document.getElementById('mfa-code').value.trim();
@@ -580,24 +599,67 @@
     }
 
     // === CADASTRO ===
+     // === CADASTRO COM VERIFICAÇÃO ===
+    let pendingRegistration = null;
+
     function registrarUsuario(e) {
         e.preventDefault();
         const btn  = document.getElementById('register-btn');
         const orig = btn.innerHTML;
+        const name = document.getElementById('reg-name').value.trim();
+        const email = document.getElementById('reg-email').value.trim();
+        const birthdate = document.getElementById('reg-birthdate').value;
         const pw   = document.getElementById('reg-password').value;
         const conf = document.getElementById('reg-confirm-password').value;
+        
+        if (!name || !email || !birthdate) { showToast('Preencha todos os campos!', 'warning'); return; }
         if (pw !== conf)   { showToast('As senhas não coincidem!', 'error');  return; }
         if (pw.length < 6) { showToast('Mínimo 6 caracteres.', 'warning');    return; }
+        
         setLoading(btn, true);
-        fetch(`${API}/register`, {
+        
+        // Envia código de verificação
+        fetch(`${API}/send-verification`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: document.getElementById('reg-name').value, email: document.getElementById('reg-email').value, password: pw, birthdate: document.getElementById('reg-birthdate').value })
+            body: JSON.stringify({ email, name })
         }).then(r => r.json()).then(data => {
-            if (data.error)   { showToast(data.error, 'error'); setLoading(btn, false, orig); return; }
-            if (data.message) { showToast(data.message, 'success'); setLoading(btn, false, orig); toggle('login'); return; }
-            localStorage.setItem('academax_user', JSON.stringify(data));
-            window.location.href = '/';
+            if (data.error) { showToast(data.error, 'error'); setLoading(btn, false, orig); return; }
+            
+            // Salva os dados e mostra tela de verificação
+            pendingRegistration = { name, email, birthdate, password: pw };
+            toggle('verify');
+            showToast('Código enviado para ' + email + '!', 'info');
+            setLoading(btn, false, orig);
         }).catch(() => { showToast('Erro de conexão.', 'error'); setLoading(btn, false, orig); });
+    }
+
+    async function verifyRegistration() {
+        const code = document.getElementById('verify-code').value.trim();
+        if (!code || code.length !== 6) { showToast('Digite o código de 6 dígitos.', 'warning'); return; }
+        
+        const btn = document.getElementById('verify-btn');
+        const orig = btn.innerHTML;
+        setLoading(btn, true);
+        
+        try {
+            const r = await fetch(`${API}/verify-registration`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    email: pendingRegistration.email, 
+                    code, 
+                    name: pendingRegistration.name, 
+                    password: pendingRegistration.password, 
+                    birthdate: pendingRegistration.birthdate 
+                })
+            });
+            const data = await r.json();
+            if (data.error) { showToast(data.error, 'error'); setLoading(btn, false, orig); return; }
+            
+            localStorage.setItem('academax_user', JSON.stringify(data));
+            showToast('Cadastro confirmado! Bem-vindo!', 'success');
+            window.location.href = '/';
+        } catch (e) { showToast('Erro de conexão.', 'error'); }
+        setLoading(btn, false, orig);
     }
 
     // === ESQUECI A SENHA ===

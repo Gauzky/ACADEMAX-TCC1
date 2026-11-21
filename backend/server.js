@@ -262,5 +262,70 @@ app.get('/api/history/:userId', authMiddleware, async (req, res) => {
     res.json(sessions.map(s => ({ ...s, sets: JSON.parse(s.sets), workoutName: s.workout ? s.workout.name : 'Treino Removido' })));
 });
 
+// === VERIFICAÇÃO DE E-MAIL NO CADASTRO ===
+const registerCodes = new Map();
+
+app.post('/api/send-verification', async (req, res) => {
+    const { email, name } = req.body;
+    if (!email || !name) return res.status(400).json({ error: 'Dados incompletos' });
+    
+    // Verifica se o e-mail já existe
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) return res.status(400).json({ error: 'E-mail já cadastrado' });
+    
+    // Gera código de 6 dígitos
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    registerCodes.set(email, { code, name, expiry: Date.now() + 600000 }); // 10 min
+    
+    try {
+        await transporter.sendMail({
+            from: `"AcadeMax" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: '✅ Confirme seu cadastro — AcadeMax',
+            html: `<div style="font-family:Arial;max-width:400px;margin:auto;background:#111114;border-radius:16px;padding:32px;">
+                <div style="text-align:center;margin-bottom:24px;">
+                    <span style="font-size:22px;font-weight:800;color:#f4f4f5;">ACADE<span style="color:#6366f1;">MAX</span></span>
+                </div>
+                <h2 style="color:#f4f4f5;font-size:18px;text-align:center;">Confirme seu cadastro</h2>
+                <p style="color:#a1a1aa;font-size:14px;text-align:center;margin:12px 0 20px;">Olá, <strong style="color:#f4f4f5;">${name}</strong>! Use o código abaixo para confirmar seu cadastro:</p>
+                <div style="background:#1c1c21;border-radius:12px;padding:20px;text-align:center;margin:20px 0;">
+                    <span style="font-size:36px;font-weight:700;color:#6366f1;letter-spacing:10px;">${code}</span>
+                </div>
+                <p style="color:#52525b;font-size:12px;text-align:center;">Este código expira em 10 minutos. Se você não solicitou este cadastro, ignore este e-mail.</p>
+            </div>`
+        });
+        res.json({ message: 'Código enviado!' });
+    } catch (e) {
+        console.error('Erro ao enviar código:', e);
+        res.status(500).json({ error: 'Erro ao enviar e-mail. Verifique se o e-mail é válido.' });
+    }
+});
+
+app.post('/api/verify-registration', async (req, res) => {
+    const { email, code, name, password, birthdate } = req.body;
+    
+    const record = registerCodes.get(email);
+    if (!record) return res.status(400).json({ error: 'Nenhum código enviado. Solicite um novo.' });
+    if (Date.now() > record.expiry) {
+        registerCodes.delete(email);
+        return res.status(400).json({ error: 'Código expirado. Solicite um novo.' });
+    }
+    if (record.code !== code) return res.status(401).json({ error: 'Código incorreto' });
+    
+    registerCodes.delete(email);
+    
+    // Agora cria o usuário
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = await prisma.user.create({
+            data: { name, email, password: hashedPassword, birthdate,
+                    isAdmin: email === 'admin@academaxx.com.br' }
+        });
+        res.json({ id: user.id, name: user.name, email: user.email, isAdmin: user.isAdmin });
+    } catch {
+        res.status(400).json({ error: 'E-mail já cadastrado' });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Backend do AcadeMax rodando na porta ${PORT}`));
