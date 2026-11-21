@@ -125,6 +125,7 @@ function navigateTo(viewName) {
     if (viewName === 'measures')   loadMeasuresView();
     if (viewName === 'achievements') loadAchievementsView();
     if (viewName === 'schedule')   loadScheduleView();
+    if (viewName === 'goals')      loadGoalsView();
     if (viewName === 'profile')    loadProfileData();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -1567,6 +1568,316 @@ function renderNextWorkouts() {
             <div>${u.isToday ? '🔥 Hoje!' : 'Treino'}</div>
         </div>
     `).join('');
+}
+
+
+
+// =============================================
+// === METAS PERSONAIS ===
+// =============================================
+let userGoals = JSON.parse(localStorage.getItem('academax_goals') || '[]');
+
+const goalTypes = [
+    { id: 'strength',  icon: 'fa-dumbbell',     label: 'Força',         color: '#6366f1', unit: 'kg',
+      desc: 'Carga alvo para um exercício', placeholder: 'Ex: Supino Reto 100kg' },
+    { id: 'body',       icon: 'fa-weight-scale', label: 'Corpo',         color: '#22c55e', unit: 'kg',
+      desc: 'Perder ou ganhar peso', placeholder: 'Ex: Emagrecer 6kg' },
+    { id: 'frequency',  icon: 'fa-calendar-check',label: 'Constância',   color: '#f59e0b', unit: 'x',
+      desc: 'Treinos por semana', placeholder: 'Ex: Treinar 4x por semana' },
+    { id: 'volume',     icon: 'fa-fire',         label: 'Volume Total',  color: '#ef4444', unit: 'kg',
+      desc: 'Volume total levantado', placeholder: 'Ex: Levantar 10.000kg no mês' },
+];
+
+function loadGoalsView() {
+    const el = document.getElementById('view-goals');
+    if (!el) return;
+
+    // Calcula progresso das metas
+    const goalsWithProgress = userGoals.map(g => {
+        let current = 0;
+        if (g.type === 'strength') {
+            // Pega a maior carga do exercício no histórico
+            const exRecords = [];
+            DB.history.forEach(h => h.sets.forEach(s => {
+                if (s.exName === g.exercise && s.actualWeight) exRecords.push(s.actualWeight);
+            }));
+            current = exRecords.length > 0 ? Math.max(...exRecords) : 0;
+        } else if (g.type === 'body') {
+            const measures = JSON.parse(localStorage.getItem('academax_measures') || '[]');
+            if (measures.length > 0) {
+                const latest = measures[measures.length - 1];
+                const first = measures[0];
+                if (g.direction === 'lose') {
+                    current = Math.max(0, (first.weight - latest.weight));
+                } else {
+                    current = Math.max(0, (latest.weight - first.weight));
+                }
+            }
+        } else if (g.type === 'frequency') {
+            const weekAgo = new Date(Date.now() - 7 * 86400000);
+            current = DB.history.filter(h => new Date(h.date) > weekAgo).length;
+        } else if (g.type === 'volume') {
+            const monthAgo = new Date(Date.now() - 30 * 86400000);
+            current = DB.history.filter(h => new Date(h.date) > monthAgo).reduce((s, h) => s + h.volume, 0);
+        }
+        g.current = current;
+        g.progress = g.target > 0 ? Math.min(100, (current / g.target) * 100) : 0;
+        g.completed = g.current >= g.target;
+        return g;
+    });
+
+    // Atualiza conquistas de metas
+    const completedCount = goalsWithProgress.filter(g => g.completed).length;
+
+    el.innerHTML = `
+        <div class="page-header header-flex">
+            <h1>Minhas Metas</h1>
+            <button class="btn-primary" style="width:auto;margin:0;padding:10px 16px;font-size:14px;" onclick="showGoalForm()">
+                <i class="fa-solid fa-plus"></i> Nova Meta
+            </button>
+        </div>
+
+        <div class="card" style="text-align:center;padding:24px 20px;">
+            <div style="display:flex;justify-content:center;gap:30px;flex-wrap:wrap;">
+                <div>
+                    <p style="font-size:12px;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Metas Ativas</p>
+                    <span class="big-number" style="font-size:28px;color:var(--accent);">${goalsWithProgress.filter(g => !g.completed).length}</span>
+                </div>
+                <div style="width:1px;background:var(--border);"></div>
+                <div>
+                    <p style="font-size:12px;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Concluídas</p>
+                    <span class="big-number" style="font-size:28px;color:var(--success);">${completedCount}</span>
+                </div>
+                <div style="width:1px;background:var(--border);"></div>
+                <div>
+                    <p style="font-size:12px;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Taxa Sucesso</p>
+                    <span class="big-number" style="font-size:28px;color:var(--warning);">${goalsWithProgress.length > 0 ? Math.round((completedCount / goalsWithProgress.length) * 100) : 0}%</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="goal-form-container" class="hidden" style="margin-bottom:20px;"></div>
+
+        ${goalsWithProgress.length === 0 ? `
+            <div class="card" style="text-align:center;padding:48px 20px;">
+                <i class="fa-solid fa-bullseye" style="font-size:48px;color:var(--text-3);margin-bottom:16px;display:block;"></i>
+                <h3 style="color:var(--text-2);margin-bottom:8px;">Nenhuma meta definida</h3>
+                <p style="color:var(--text-3);font-size:14px;margin-bottom:20px;">Defina seus objetivos e acompanhe seu progresso!</p>
+                <button class="btn-primary" style="width:auto;margin:0 auto;" onclick="showGoalForm()">
+                    <i class="fa-solid fa-plus"></i> Criar primeira meta
+                </button>
+            </div>
+        ` : `
+            <div id="goals-list">
+                ${goalsWithProgress.map(g => renderGoalCard(g)).join('')}
+            </div>
+        `}
+    `;
+}
+
+function renderGoalCard(g) {
+    const type = goalTypes.find(t => t.id === g.type);
+    if (!type) return '';
+    const remaining = Math.max(0, g.target - g.current);
+    const remainingText = g.type === 'frequency' ? `${remaining} treino${remaining !== 1 ? 's' : ''}` :
+                          g.type === 'volume' ? `${remaining.toFixed(0)} kg` :
+                          `${remaining.toFixed(1)} ${type.unit}`;
+
+    return `
+        <div class="goal-card ${g.completed ? 'completed' : ''}">
+            <div class="goal-header">
+                <div class="goal-icon" style="background:${type.color}22;color:${type.color};">
+                    <i class="fa-solid ${type.icon}"></i>
+                </div>
+                <div class="goal-info">
+                    <h4>${g.title}</h4>
+                    <p>${type.label}${g.exercise ? ' · ' + g.exercise : ''}</p>
+                </div>
+                <button class="goal-delete" onclick="deleteGoal('${g.id}')">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="goal-progress-section">
+                <div class="goal-progress-bar">
+                    <div class="goal-progress-fill" style="width:${g.progress}%;background:${type.color};"></div>
+                </div>
+                <div class="goal-stats">
+                    <span>Atual: <strong style="color:${type.color};">${g.current.toFixed(g.type === 'volume' ? 0 : 1)} ${type.unit}</strong></span>
+                    <span>Meta: <strong>${g.target} ${type.unit}</strong></span>
+                </div>
+            </div>
+
+            ${g.completed ? `
+                <div class="goal-completed-badge">
+                    <i class="fa-solid fa-trophy"></i> Meta concluída! Parabéns! 🎉
+                </div>
+            ` : `
+                <div class="goal-remaining">
+                    Faltam <strong style="color:${type.color};">${remainingText}</strong> para atingir sua meta
+                </div>
+            `}
+        </div>`;
+}
+
+function showGoalForm() {
+    const container = document.getElementById('goal-form-container');
+    if (!container) return;
+
+    const exercises = [...new Set(DB.history.flatMap(h => h.sets.map(s => s.exName)))].sort();
+
+    container.classList.remove('hidden');
+    container.innerHTML = `
+        <div class="card">
+            <div class="header-flex">
+                <h3 class="card-label">Nova Meta</h3>
+                <button class="btn-action btn-delete" style="flex:none;padding:8px 12px;" onclick="hideGoalForm()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <label>Tipo de Meta</label>
+            <div class="goal-type-grid">
+                ${goalTypes.map(t => `
+                    <button class="goal-type-card" data-type="${t.id}" onclick="selectGoalType('${t.id}')">
+                        <div class="goal-type-icon" style="background:${t.color}22;color:${t.color};">
+                            <i class="fa-solid ${t.icon}"></i>
+                        </div>
+                        <span>${t.label}</span>
+                    </button>
+                `).join('')}
+            </div>
+
+            <div id="goal-type-desc" class="info-box" style="margin-top:12px;"></div>
+
+            <div id="goal-dynamic-fields"></div>
+
+            <label>Título da Meta</label>
+            <input type="text" id="goal-title" placeholder="Ex: Supino 100kg" oninput="updateGoalTitlePlaceholder()">
+
+            <div id="goal-target-field" class="hidden">
+                <label>Valor da Meta</label>
+                <input type="number" id="goal-target" placeholder="100" min="1" step="0.5">
+                <span id="goal-unit-hint" style="font-size:12px;color:var(--text-3);"></span>
+            </div>
+
+            <div id="goal-exercise-field" class="hidden">
+                <label>Exercício</label>
+                <select id="goal-exercise">
+                    <option value="">Selecione um exercício...</option>
+                    ${exercises.map(e => `<option value="${e}">${e}</option>`).join('')}
+                </select>
+                <p style="font-size:12px;color:var(--text-3);margin-top:4px;">Apenas exercícios que você já treinou aparecem aqui.</p>
+            </div>
+
+            <div id="goal-direction-field" class="hidden">
+                <label>Direção</label>
+                <div style="display:flex;gap:8px;">
+                    <button class="goal-dir-btn" data-dir="lose" onclick="selectGoalDir('lose')" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text-2);cursor:pointer;font-size:13px;">📉 Emagrecer</button>
+                    <button class="goal-dir-btn" data-dir="gain" onclick="selectGoalDir('gain')" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-input);color:var(--text-2);cursor:pointer;font-size:13px;">📈 Ganhar Massa</button>
+                </div>
+            </div>
+
+            <button class="btn-primary btn-full" style="margin-top:16px;" onclick="saveGoal()">
+                <i class="fa-solid fa-bullseye"></i> Criar Meta
+            </button>
+        </div>
+    `;
+    container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+let selectedGoalType = null;
+let selectedGoalDir = null;
+
+function selectGoalType(typeId) {
+    selectedGoalType = typeId;
+    const t = goalTypes.find(x => x.id === typeId);
+
+    document.querySelectorAll('.goal-type-card').forEach(c => c.classList.remove('selected'));
+    document.querySelector(`[data-type="${typeId}"]`).classList.add('selected');
+
+    document.getElementById('goal-type-desc').innerHTML = `<p style="font-size:13px;color:var(--text-2);"><i class="fa-solid fa-circle-info" style="margin-right:6px;color:${t.color};"></i>${t.desc}</p>`;
+    document.getElementById('goal-unit-hint').innerText = `Unidade: ${t.unit}`;
+    document.getElementById('goal-target-field').classList.remove('hidden');
+    document.getElementById('goal-title').placeholder = t.placeholder;
+
+    if (typeId === 'strength') {
+        document.getElementById('goal-exercise-field').classList.remove('hidden');
+    } else {
+        document.getElementById('goal-exercise-field').classList.add('hidden');
+    }
+
+    if (typeId === 'body') {
+        document.getElementById('goal-direction-field').classList.remove('hidden');
+    } else {
+        document.getElementById('goal-direction-field').classList.add('hidden');
+    }
+}
+
+function selectGoalDir(dir) {
+    selectedGoalDir = dir;
+    document.querySelectorAll('.goal-dir-btn').forEach(b => {
+        b.style.background = 'var(--bg-input)';
+        b.style.color = 'var(--text-2)';
+        b.style.borderColor = 'var(--border)';
+    });
+    const btn = document.querySelector(`[data-dir="${dir}"]`);
+    btn.style.background = 'var(--accent-g)';
+    btn.style.color = 'var(--accent)';
+    btn.style.borderColor = 'var(--accent)';
+}
+
+function updateGoalTitlePlaceholder() {
+    // Auto-fill title if empty based on type
+}
+
+function hideGoalForm() {
+    document.getElementById('goal-form-container').classList.add('hidden');
+    selectedGoalType = null;
+    selectedGoalDir = null;
+}
+
+function saveGoal() {
+    const title = document.getElementById('goal-title').value.trim();
+    const target = parseFloat(document.getElementById('goal-target').value);
+
+    if (!selectedGoalType) { showToast('Selecione o tipo de meta!', 'warning'); return; }
+    if (!title) { showToast('Digite um título!', 'warning'); return; }
+    if (!target || target <= 0) { showToast('Digite um valor válido!', 'warning'); return; }
+
+    const goal = {
+        id: Date.now().toString(),
+        type: selectedGoalType,
+        title,
+        target,
+        createdAt: new Date().toISOString(),
+    };
+
+    if (selectedGoalType === 'strength') {
+        const ex = document.getElementById('goal-exercise').value;
+        if (!ex) { showToast('Selecione um exercício!', 'warning'); return; }
+        goal.exercise = ex;
+    }
+
+    if (selectedGoalType === 'body') {
+        if (!selectedGoalDir) { showToast('Selecione a direção!', 'warning'); return; }
+        goal.direction = selectedGoalDir;
+    }
+
+    userGoals.push(goal);
+    localStorage.setItem('academax_goals', JSON.stringify(userGoals));
+    showToast('Meta criada com sucesso! 🎯', 'success');
+    hideGoalForm();
+    loadGoalsView();
+}
+
+function deleteGoal(id) {
+    showConfirm('Excluir meta', 'Deseja remover esta meta?', '🗑️', () => {
+        userGoals = userGoals.filter(g => g.id !== id);
+        localStorage.setItem('academax_goals', JSON.stringify(userGoals));
+        showToast('Meta removida.', 'info');
+        loadGoalsView();
+    });
 }
 
 
