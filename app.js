@@ -1032,11 +1032,15 @@ async function handleAvatarUpload(event) {
 }
 
 async function toggleMFA(enabled) {
-    const slider = document.querySelector('#mfa-toggle + span');
-    const knob = slider ? slider.querySelector('span:last-child') : null;
-    
+    // Pega o checkbox oculto
+    const checkbox = document.getElementById('mfa-toggle');
+    // Pega a barra que fica atrás da bolinha (o "trilho")
+    const track = checkbox.nextElementSibling;
+    // Pega a própria bolinha (o círculo branco)
+    const knob = track.querySelector('span:last-child');
+
     // Atualiza o visual na hora (otimista)
-    if (slider) slider.style.background = enabled ? 'var(--accent)' : 'var(--bg-input)';
+    if (track) track.style.background = enabled ? 'var(--accent)' : 'var(--bg-input)';
     if (knob) knob.style.transform = enabled ? 'translateX(20px)' : 'translateX(0)';
 
     try {
@@ -1049,10 +1053,22 @@ async function toggleMFA(enabled) {
         if (data.error) {
             showToast(data.error, 'error');
             // Reverte o visual se der erro
-            if (slider) slider.style.background = !enabled ? 'var(--accent)' : 'var(--bg-input)';
+            checkbox.checked = !enabled;
+            if (track) track.style.background = !enabled ? 'var(--accent)' : 'var(--bg-input)';
             if (knob) knob.style.transform = !enabled ? 'translateX(20px)' : 'translateX(0)';
             return;
         }
+        
+        loggedUser.mfaEnabled = data.mfaEnabled;
+        localStorage.setItem('academax_user', JSON.stringify(loggedUser));
+        showToast(data.mfaEnabled ? 'MFA ativado! 🔒' : 'MFA desativado', 'success');
+    } catch (err) {
+        showToast('Erro de conexão ao alterar MFA', 'error');
+        checkbox.checked = !enabled;
+        if (track) track.style.background = !enabled ? 'var(--accent)' : 'var(--bg-input)';
+        if (knob) knob.style.transform = !enabled ? 'translateX(20px)' : 'translateX(0)';
+    }
+}
         
         // Salva no navegador do usuário
         loggedUser.mfaEnabled = data.mfaEnabled;
