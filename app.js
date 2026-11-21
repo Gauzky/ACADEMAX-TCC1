@@ -122,6 +122,9 @@ function navigateTo(viewName) {
     if (viewName === 'history')    renderHistory();
     if (viewName === 'progression') renderProgression();
     if (viewName === 'clients')    renderClients();
+    if (viewName === 'measures')   loadMeasuresView();
+    if (viewName === 'achievements') loadAchievementsView();
+    if (viewName === 'schedule')   loadScheduleView();
     if (viewName === 'profile')    loadProfileData();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -444,11 +447,13 @@ function editWorkout(id) {
 
 function renderLibrary() {
     const muscles = [...new Set(exerciseLibrary.map(e => e.muscle))];
+    const searchVal = (document.getElementById('ex-search')?.value || '').toLowerCase().trim();
     document.getElementById('exercises-tabs').innerHTML = muscles
         .map(m => `<button class="tab-btn ${m === currentMuscleTab ? 'active-tab' : ''}" onclick="changeMuscleTab('${m}')">${m}</button>`)
         .join('');
     document.getElementById('exercises-library').innerHTML = exerciseLibrary
         .filter(ex => ex.muscle === currentMuscleTab)
+        .filter(ex => !searchVal || ex.name.toLowerCase().includes(searchVal))
         .map((ex, i) => {
             const gi = exerciseLibrary.indexOf(ex);
             return `<div class="exercise-lib-item">
@@ -1076,38 +1081,56 @@ function renderHealthForm(d) {
     selectedObjetivo = d.objetivo || '';
     selectedNivel    = d.nivel    || '';
     const condChecks = fichaConditions.map(c => `
-        <label class="health-check-item">
-            <input type="checkbox" id="${c.id}" ${d.conditions?.includes(c.id) ? 'checked' : ''}>
-            <i class="fa-solid ${c.icon}" style="font-size:14px;"></i> ${c.label}
+        <label class="health-check-card ${d.conditions?.includes(c.id) ? 'checked' : ''}" data-cond="${c.id}" onclick="toggleHealthCard(this)">
+            <input type="checkbox" id="${c.id}" ${d.conditions?.includes(c.id) ? 'checked' : ''} style="display:none;">
+            <div class="health-check-icon ${c.color}"><i class="fa-solid ${c.icon}"></i></div>
+            <span>${c.label}</span>
         </label>`).join('');
     const objBtns = fichaObjetivos.map(o => `
-        <button class="objetivo-btn ${selectedObjetivo===o.value?'selected':''}" onclick="selectObjetivo('${o.value}')">
-            <i class="fa-solid ${o.icon}"></i>${o.label}
+        <button class="objetivo-card ${selectedObjetivo===o.value?'selected':''}" onclick="selectObjetivo('${o.value}')">
+            <i class="fa-solid ${o.icon}"></i>
+            <span>${o.label}</span>
         </button>`).join('');
     return `
-        <div class="health-section">
-            <p class="health-section-title">Condições de Saúde</p>
+        <div class="ficha-section">
+            <div class="ficha-section-header">
+                <i class="fa-solid fa-heart-pulse"></i>
+                <p>Condições de Saúde</p>
+            </div>
             <div class="health-check-grid">${condChecks}</div>
-            <label style="margin-top:12px;">Medicamentos (opcional)</label>
-            <input type="text" id="ficha-medicamentos" value="${d.medicamentos||''}" placeholder="Ex: Losartana, Metformina">
-            <label>Observações</label>
-            <input type="text" id="ficha-obs" value="${d.obs||''}" placeholder="Ex: dor no joelho ao agachar">
-        </div>
-        <div class="health-section">
-            <p class="health-section-title">Objetivo</p>
-            <div class="objetivo-btn-grid" id="objetivo-grid">${objBtns}</div>
-        </div>
-        <div class="health-section">
-            <p class="health-section-title">Nível</p>
-            <div class="nivel-btn-grid">
-                <button class="nivel-btn ${selectedNivel==='iniciante'?'selected':''}" onclick="selectNivel('iniciante')">🌱 Iniciante</button>
-                <button class="nivel-btn ${selectedNivel==='intermediario'?'selected':''}" onclick="selectNivel('intermediario')">💪 Intermediário</button>
-                <button class="nivel-btn ${selectedNivel==='avancado'?'selected':''}" onclick="selectNivel('avancado')">🔥 Avançado</button>
+            <div class="ficha-input-group">
+                <label>Medicamentos em uso</label>
+                <input type="text" id="ficha-medicamentos" value="${d.medicamentos||''}" placeholder="Ex: Losartana, Metformina">
+                <label>Observações / Limitações</label>
+                <textarea id="ficha-obs" rows="2" placeholder="Ex: Dor no joelho ao agachar">${d.obs||''}</textarea>
             </div>
         </div>
-        <button class="btn-primary btn-full" id="save-ficha-btn" onclick="saveFicha()">
+        <div class="ficha-section">
+            <div class="ficha-section-header">
+                <i class="fa-solid fa-bullseye"></i>
+                <p>Objetivo Principal</p>
+            </div>
+            <div class="objetivo-grid">${objBtns}</div>
+        </div>
+        <div class="ficha-section">
+            <div class="ficha-section-header">
+                <i class="fa-solid fa-gauge-high"></i>
+                <p>Nível de Experiência</p>
+            </div>
+            <div class="nivel-grid">
+                <button class="nivel-card ${selectedNivel==='iniciante'?'selected':''}" onclick="selectNivel('iniciante')"><span class="nivel-dot"></span> Iniciante</button>
+                <button class="nivel-card ${selectedNivel==='intermediario'?'selected':''}" onclick="selectNivel('intermediario')"><span class="nivel-dot"></span> Intermediário</button>
+                <button class="nivel-card ${selectedNivel==='avancado'?'selected':''}" onclick="selectNivel('avancado')"><span class="nivel-dot"></span> Avançado</button>
+            </div>
+        </div>
+        <button class="btn-primary btn-full" id="save-ficha-btn" onclick="saveFicha()" style="margin-top:20px;">
             <i class="fa-solid fa-floppy-disk"></i> Salvar Ficha
         </button>`;
+}
+function toggleHealthCard(el) {
+    const cb = el.querySelector('input[type="checkbox"]');
+    cb.checked = !cb.checked;
+    el.classList.toggle('checked', cb.checked);
 }
 
 function selectObjetivo(value) {
@@ -1339,6 +1362,214 @@ async function saveAdminFicha(clientId) {
 // =============================================
 // === INICIALIZA ===
 // =============================================
+
+// =============================================
+// === MEDIDAS CORPORAIS ===
+// =============================================
+let bodyMeasures = JSON.parse(localStorage.getItem('academax_measures') || '[]');
+
+function loadMeasuresView() {
+    const el = document.getElementById('view-measures');
+    if (!el) return;
+    el.innerHTML = `
+        <div class="page-header"><h1>Medidas Corporais</h1></div>
+        <div class="card">
+            <h3 class="card-label">Registrar Medidas</h3>
+            <div class="grid-2">
+                <div><label>Peso (kg)</label><input type="number" id="meas-weight" placeholder="75.5" step="0.1"></div>
+                <div><label>Data</label><input type="date" id="meas-date" value="${new Date().toISOString().split('T')[0]}"></div>
+            </div>
+            <div class="grid-2">
+                <div><label>Braço (cm)</label><input type="number" id="meas-arm" placeholder="35"></div>
+                <div><label>Cintura (cm)</label><input type="number" id="meas-waist" placeholder="80"></div>
+            </div>
+            <div class="grid-2">
+                <div><label>Peito (cm)</label><input type="number" id="meas-chest" placeholder="100"></div>
+                <div><label>Coxa (cm)</label><input type="number" id="meas-thigh" placeholder="55"></div>
+            </div>
+            <button class="btn-primary btn-full" onclick="saveMeasure()"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+        </div>
+        <div class="card">
+            <h3 class="card-label">Histórico de Peso</h3>
+            <div style="height: 200px; margin-top: 15px;"><canvas id="measuresChart"></canvas></div>
+        </div>
+        <div id="measures-list" class="workouts-list"></div>
+    `;
+    renderMeasuresList();
+    renderMeasuresChart();
+}
+
+function saveMeasure() {
+    const m = {
+        id: Date.now().toString(),
+        date: document.getElementById('meas-date').value,
+        weight: parseFloat(document.getElementById('meas-weight').value) || 0,
+        arm: parseInt(document.getElementById('meas-arm').value) || 0,
+        waist: parseInt(document.getElementById('meas-waist').value) || 0,
+        chest: parseInt(document.getElementById('meas-chest').value) || 0,
+        thigh: parseInt(document.getElementById('meas-thigh').value) || 0,
+    };
+    if (!m.weight) { showToast('Digite o peso!', 'warning'); return; }
+    bodyMeasures.push(m);
+    bodyMeasures.sort((a, b) => new Date(a.date) - new Date(b.date));
+    localStorage.setItem('academax_measures', JSON.stringify(bodyMeasures));
+    showToast('Medida registrada!', 'success');
+    loadMeasuresView();
+}
+
+function renderMeasuresList() {
+    const list = document.getElementById('measures-list');
+    if (!list) return;
+    if (bodyMeasures.length === 0) { list.innerHTML = '<p class="subtitle">Nenhuma medida registrada.</p>'; return; }
+    list.innerHTML = bodyMeasures.slice().reverse().map(m => `
+        <div class="workout-item">
+            <div class="workout-info">
+                <h3>${new Date(m.date).toLocaleDateString('pt-BR')}</h3>
+                <p>Peso: ${m.weight}kg ${m.arm ? '· Braço: '+m.arm+'cm' : ''} ${m.waist ? '· Cintura: '+m.waist+'cm' : ''}</p>
+            </div>
+            <button class="btn-action btn-delete" onclick="deleteMeasure('${m.id}')"><i class="fa-solid fa-trash-can"></i></button>
+        </div>`).join('');
+}
+
+function deleteMeasure(id) {
+    bodyMeasures = bodyMeasures.filter(m => m.id !== id);
+    localStorage.setItem('academax_measures', JSON.stringify(bodyMeasures));
+    loadMeasuresView();
+}
+
+let measuresChart = null;
+function renderMeasuresChart() {
+    const ctx = document.getElementById('measuresChart');
+    if (!ctx) return;
+    if (measuresChart) measuresChart.destroy();
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6366f1';
+    const isLight = document.body.classList.contains('light');
+    measuresChart = new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: bodyMeasures.map(m => new Date(m.date).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'})),
+            datasets: [{
+                label: 'Peso (kg)', data: bodyMeasures.map(m => m.weight),
+                borderColor: accent, backgroundColor: accent+'18',
+                borderWidth: 2.5, fill: true, tension: 0.3,
+                pointBackgroundColor: accent, pointRadius: 4
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { grid: { color: 'rgba(128,128,128,0.08)' }, ticks: { color: isLight ? '#71717a' : '#52525b' } },
+                x: { grid: { display: false }, ticks: { color: isLight ? '#71717a' : '#52525b' } }
+            }
+        }
+    });
+}
+
+// =============================================
+// === CONQUISTAS (GAMIFICAÇÃO) ===
+// =============================================
+const achievements = [
+    { id: 'first_workout', icon: 'fa-dumbbell', title: 'Primeiro Treino', desc: 'Complete seu primeiro treino', condition: () => DB.history.length >= 1 },
+    { id: '5_workouts', icon: 'fa-medal', title: '5 Treinos', desc: 'Complete 5 treinos', condition: () => DB.history.length >= 5 },
+    { id: '10_workouts', icon: 'fa-trophy', title: '10 Treinos', desc: 'Complete 10 treinos', condition: () => DB.history.length >= 10 },
+    { id: 'create_workout', icon: 'fa-pen', title: 'Personal Trainer', desc: 'Crie seu primeiro treino', condition: () => DB.workouts.length >= 1 },
+    { id: 'volume_1000', icon: 'fa-fire', title: '1000kg', desc: 'Levante 1000kg no total', condition: () => DB.history.reduce((s,h) => s+h.volume, 0) >= 1000 },
+    { id: 'volume_5000', icon: 'fa-bolt', title: '5000kg', desc: 'Levante 5000kg no total', condition: () => DB.history.reduce((s,h) => s+h.volume, 0) >= 5000 },
+    { id: 'ficha_filled', icon: 'fa-notes-medical', title: 'Ficha Completa', desc: 'Preencha sua ficha de saúde', condition: () => !!loggedUser.ficha },
+];
+
+function loadAchievementsView() {
+    const el = document.getElementById('view-achievements');
+    if (!el) return;
+    const unlocked = achievements.filter(a => a.condition());
+    const locked = achievements.filter(a => !a.condition());
+    el.innerHTML = `
+        <div class="page-header"><h1>Conquistas</h1></div>
+        <div class="card" style="text-align:center;padding:24px;">
+            <p style="font-size:14px;color:var(--text-2);margin-bottom:8px;">Conquistas Desbloqueadas</p>
+            <span class="big-number" style="color:var(--success);">${unlocked.length} / ${achievements.length}</span>
+        </div>
+        <div class="achievements-grid">
+            ${unlocked.map(a => `
+                <div class="achievement-card unlocked">
+                    <div class="achievement-icon"><i class="fa-solid ${a.icon}"></i></div>
+                    <div class="achievement-info"><h4>${a.title}</h4><p>${a.desc}</p></div>
+                    <i class="fa-solid fa-check" style="color:var(--success);font-size:18px;"></i>
+                </div>`).join('')}
+            ${locked.map(a => `
+                <div class="achievement-card locked">
+                    <div class="achievement-icon"><i class="fa-solid ${a.icon}"></i></div>
+                    <div class="achievement-info"><h4>${a.title}</h4><p>${a.desc}</p></div>
+                    <i class="fa-solid fa-lock" style="color:var(--text-3);font-size:14px;"></i>
+                </div>`).join('')}
+        </div>
+    `;
+}
+
+// =============================================
+// === AGENDAMENTO DE TREINOS ===
+// =============================================
+let schedule = JSON.parse(localStorage.getItem('academax_schedule') || '{}');
+const days = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+function loadScheduleView() {
+    const el = document.getElementById('view-schedule');
+    if (!el) return;
+    el.innerHTML = `
+        <div class="page-header"><h1>Agenda de Treinos</h1></div>
+        <div class="card">
+            <h3 class="card-label">Seus dias de treino</h3>
+            <p style="color:var(--text-2);font-size:13px;margin-bottom:16px;">Toque nos dias para marcar/desmarcar.</p>
+            <div class="schedule-grid">
+                ${days.map((d,i) => `
+                    <button class="schedule-day ${schedule[i] ? 'active' : ''}" onclick="toggleDay(${i})">
+                        <span>${d}</span>
+                    </button>`).join('')}
+            </div>
+        </div>
+        <div class="card">
+            <h3 class="card-label">Próximos Treinos</h3>
+            <div id="next-workouts"></div>
+        </div>
+    `;
+    renderNextWorkouts();
+}
+
+function toggleDay(dayIndex) {
+    schedule[dayIndex] = !schedule[dayIndex];
+    if (!schedule[dayIndex]) delete schedule[dayIndex];
+    localStorage.setItem('academax_schedule', JSON.stringify(schedule));
+    loadScheduleView();
+    showToast(schedule[dayIndex] ? 'Dia marcado!' : 'Dia desmarcado!', 'success');
+}
+
+function renderNextWorkouts() {
+    const el = document.getElementById('next-workouts');
+    if (!el) return;
+    const today = new Date().getDay();
+    const upcoming = [];
+    for (let i = 0; i < 7; i++) {
+        const day = (today + i) % 7;
+        if (schedule[day]) {
+            const date = new Date();
+            date.setDate(date.getDate() + i);
+            upcoming.push({ day: days[day], date, isToday: i === 0 });
+        }
+    }
+    if (upcoming.length === 0) {
+        el.innerHTML = '<p style="color:var(--text-3);font-size:14px;text-align:center;padding:16px;">Nenhum treino agendado.</p>';
+        return;
+    }
+    el.innerHTML = upcoming.map(u => `
+        <div class="schedule-item ${u.isToday ? 'today' : ''}">
+            <div class="schedule-date">${u.day}<br><strong>${u.date.getDate()}/${u.date.getMonth()+1}</strong></div>
+            <div>${u.isToday ? '🔥 Hoje!' : 'Treino'}</div>
+        </div>
+    `).join('');
+}
+
+
 applyTheme();
 
 // === SERVICE WORKER (PWA) ===
