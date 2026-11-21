@@ -998,14 +998,12 @@ function editProfile() {
                     <p style="font-size:14px;font-weight:600;">Verificação em 2 etapas (MFA)</p>
                     <p style="font-size:12px;color:var(--text-3);">Receba um código por e-mail ao fazer login</p>
                 </div>
-                <label style="position:relative;display:inline-block;width:44px;height:24px;">
-                    <input type="checkbox" id="mfa-toggle" ${u.mfaEnabled ? 'checked' : ''} onchange="toggleMFA(this.checked)" style="opacity:0;width:0;height:0;">
-                    <span onclick="document.getElementById('mfa-toggle').click()" style="position:absolute;cursor:pointer;inset:0;background:${u.mfaEnabled ? 'var(--accent)' : 'var(--bg-input)'};border-radius:24px;transition:0.3s;">
-                        <span style="position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:0.3s;transform:translateX(${u.mfaEnabled ? '20px' : '0'});"></span>
-                    </span>
-                </label>
-            </div>
-        </div>`;}
+                <label class="mfa-switch">
+                    <input type="checkbox" id="mfa-toggle" ${u.mfaEnabled ? 'checked' : ''} onchange="toggleMFA(this.checked)">
+                    <span class="mfa-slider"></span>
+                    </label>
+                </div>
+            </div>`;}
     
 async function handleAvatarUpload(event) {
     const file = event.target.files[0];
@@ -1032,17 +1030,6 @@ async function handleAvatarUpload(event) {
 }
 
 async function toggleMFA(enabled) {
-    // Pega o checkbox oculto
-    const checkbox = document.getElementById('mfa-toggle');
-    // Pega a barra que fica atrás da bolinha (o "trilho")
-    const track = checkbox.nextElementSibling;
-    // Pega a própria bolinha (o círculo branco)
-    const knob = track.querySelector('span:last-child');
-
-    // Atualiza o visual na hora (otimista)
-    if (track) track.style.background = enabled ? 'var(--accent)' : 'var(--bg-input)';
-    if (knob) knob.style.transform = enabled ? 'translateX(20px)' : 'translateX(0)';
-
     try {
         const res = await authFetch(`${API}/toggle-mfa`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1052,10 +1039,8 @@ async function toggleMFA(enabled) {
         
         if (data.error) {
             showToast(data.error, 'error');
-            // Reverte o visual se der erro
-            checkbox.checked = !enabled;
-            if (track) track.style.background = !enabled ? 'var(--accent)' : 'var(--bg-input)';
-            if (knob) knob.style.transform = !enabled ? 'translateX(20px)' : 'translateX(0)';
+            // Se der erro, reverte o botão visualmente
+            document.getElementById('mfa-toggle').checked = !enabled;
             return;
         }
         
@@ -1064,21 +1049,8 @@ async function toggleMFA(enabled) {
         showToast(data.mfaEnabled ? 'MFA ativado! 🔒' : 'MFA desativado', 'success');
     } catch (err) {
         showToast('Erro de conexão ao alterar MFA', 'error');
-        checkbox.checked = !enabled;
-        if (track) track.style.background = !enabled ? 'var(--accent)' : 'var(--bg-input)';
-        if (knob) knob.style.transform = !enabled ? 'translateX(20px)' : 'translateX(0)';
-    }
-}
-        
-        // Salva no navegador do usuário
-        loggedUser.mfaEnabled = data.mfaEnabled;
-        localStorage.setItem('academax_user', JSON.stringify(loggedUser));
-        showToast(data.mfaEnabled ? 'MFA ativado! 🔒' : 'MFA desativado', 'success');
-    } catch (err) {
-        showToast('Erro de conexão ao alterar MFA', 'error');
-        // Reverte o visual se cair a internet
-        if (slider) slider.style.background = !enabled ? 'var(--accent)' : 'var(--bg-input)';
-        if (knob) knob.style.transform = !enabled ? 'translateX(20px)' : 'translateX(0)';
+        // Se cair a internet, reverte o botão visualmente
+        document.getElementById('mfa-toggle').checked = !enabled;
     }
 }
 
