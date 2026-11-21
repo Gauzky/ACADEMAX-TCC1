@@ -1032,16 +1032,38 @@ async function handleAvatarUpload(event) {
 }
 
 async function toggleMFA(enabled) {
+    const slider = document.querySelector('#mfa-toggle + span');
+    const knob = slider ? slider.querySelector('span:last-child') : null;
+    
+    // Atualiza o visual na hora (otimista)
+    if (slider) slider.style.background = enabled ? 'var(--accent)' : 'var(--bg-input)';
+    if (knob) knob.style.transform = enabled ? 'translateX(20px)' : 'translateX(0)';
+
     try {
         const res = await authFetch(`${API}/toggle-mfa`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ enabled })
         });
         const data = await res.json();
+        
+        if (data.error) {
+            showToast(data.error, 'error');
+            // Reverte o visual se der erro
+            if (slider) slider.style.background = !enabled ? 'var(--accent)' : 'var(--bg-input)';
+            if (knob) knob.style.transform = !enabled ? 'translateX(20px)' : 'translateX(0)';
+            return;
+        }
+        
+        // Salva no navegador do usuário
         loggedUser.mfaEnabled = data.mfaEnabled;
         localStorage.setItem('academax_user', JSON.stringify(loggedUser));
-        showToast(enabled ? 'MFA ativado!' : 'MFA desativado', 'success');
-    } catch (err) { showToast('Erro ao alterar MFA', 'error'); }
+        showToast(data.mfaEnabled ? 'MFA ativado! 🔒' : 'MFA desativado', 'success');
+    } catch (err) {
+        showToast('Erro de conexão ao alterar MFA', 'error');
+        // Reverte o visual se cair a internet
+        if (slider) slider.style.background = !enabled ? 'var(--accent)' : 'var(--bg-input)';
+        if (knob) knob.style.transform = !enabled ? 'translateX(20px)' : 'translateX(0)';
+    }
 }
 
 async function saveProfile() {
