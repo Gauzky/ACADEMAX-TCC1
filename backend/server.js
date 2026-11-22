@@ -92,10 +92,16 @@ app.post('/api/register', async (req, res) => {
 // === LOGIN (com MFA) ===
 app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
+    
+    // 👇 PASSO 4 AQUI: Garante que o e-mail foi enviado pelo frontend
+    if (!email) {
+        return res.status(400).json({ error: 'O e-mail é obrigatório.' });
+    }
+
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
     
-    // NOVO: Impede login com senha falsa do Google
+    // Bloqueia login normal se for conta do Google
     if (user.password === 'google_oauth') {
         return res.status(401).json({ error: "Esta conta usa login com o Google." });
     }
@@ -103,26 +109,44 @@ app.post('/api/login', async (req, res) => {
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) return res.status(401).json({ error: "Senha incorreta" });
     
-
-        if (user.mfaEnabled) {
+    if (user.mfaEnabled) {
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         const expiry = new Date(Date.now() + 300000); // 5 minutos
 
-        // Salva no banco (se já existir um código para o email, atualiza)
+        // Salva no banco
         await prisma.mfaCode.upsert({
             where: { email },
             update: { code, expiry },
             create: { email, code, expiry }
         });
 
+       
+        console.log("Tentando enviar e-mail para:", email); // <-- Verifique no pm2 logs se isso imprime o e-mail certo
+
         try {
             await transporter.sendMail({
-                // ... (seu HTML do e-mail continua igual)
+                from: `"AcadeMax" <${process.env.EMAIL_USER}>`,
+                to: email, // <-- Se estiver undefined, o erro 'No recipients' acontece
+                subject: '🔐 Seu código — AcadeMax',
+                html: `<div style="font-family:Arial;max-width:400px;margin:auto;background:#111114;border-radius:16px;padding:32px;">
+                    <h2 style="color:#f4f4f5;text-align:center;">Código de Verificação</h2>
+                    <p style="color:#a1a1aa;text-align:center;">Use o código abaixo:</p>
+                    <div style="background:#1c1c21;border-radius:12px;padding:20px;text-align:center;margin:20px 0;">
+                        <span style="font-size:32px;font-weight:700;color:#6366f1;letter-spacing:8px;">${code}</span>
+                    </div>
+                    <p style="color:#52525b;font-size:12px;text-align:center;">Expira em 5 minutos.</p>
+                </div>`
             });
-        } catch(e) { console.error('Erro MFA:', e); }
+        } catch(e) { 
+            console.error('Erro MFA:', e); 
+            // Se o e-mail falhar, apaga o código do banco e avisa o usuário
+            await prisma.mfaCode.delete({ where: { email } });
+            return res.status(500).json({ error: 'Erro ao enviar e-mail. Tente novamente mais tarde.' });
+        }
+        
         return res.json({ requiresMFA: true, email });
     }
-
+    
       // GERANDO O TOKEN (Adicione isso antes do res.json final)
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' }); // Expira em 7 dias
 
