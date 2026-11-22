@@ -1630,20 +1630,6 @@ function renderNextWorkouts() {
     `).join('');
 }
 
-async function toggleDay(dayIndex) {
-    schedule[dayIndex] = !schedule[dayIndex];
-    if (!schedule[dayIndex]) delete schedule[dayIndex];
-    
-    try {
-        await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ schedule: schedule })
-        });
-        showToast(schedule[dayIndex] ? 'Dia marcado!' : 'Dia desmarcado!', 'success');
-    } catch (e) { showToast('Erro ao salvar agenda', 'error'); }
-    loadScheduleView();
-}
-
 // =============================================
 // === METAS PERSONAIS ===
 // =============================================
