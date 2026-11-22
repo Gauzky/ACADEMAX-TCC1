@@ -400,8 +400,7 @@
     </div>
 </div>
 
-<script src="https://accounts.google.com/gsi/client" async defer onload="initGoogle()">
-
+<script src="https://accounts.google.com/gsi/client" async defer onload="initGoogle()" data-use_fedcm_for_prompt="true" data-use_fedcm_for_button="true"></script>
 
 </script>
 <script>
@@ -470,23 +469,23 @@
         setLoading(btn, false, orig);
     }
 
-        function initGoogle() {
-        if (!window.google) return;
+    function initGoogle() {
+    if (!window.google) return;
 
-        google.accounts.id.initialize({
-            client_id: '681505626161-vn9aiah8dd700qdsb4bolt9qanji49u1.apps.googleusercontent.com',
-            callback: handleCredentialResponse,
-            use_fedcm_for_prompt: true
-        });
+    google.accounts.id.initialize({
+        client_id: '681505626161-vn9aiah8dd700qdsb4bolt9qanji49u1.apps.googleusercontent.com',
+        callback: handleCredentialResponse,
+        use_fedcm_for_prompt: true // 
+    });
 
-        const cfg = { theme:'outline', size:'large', shape:'rectangular', width:380, logo_alignment:'left' };
-        
-        const container1 = document.getElementById('google-btn-container');
-        if (container1) google.accounts.id.renderButton(container1, { ...cfg, text:'continue_with', locale:'pt-BR' });
-        
-        const container2 = document.getElementById('google-btn-container-2');
-        if (container2) google.accounts.id.renderButton(container2, { ...cfg, text:'continue_with', locale:'pt-BR' });
-    }
+    const cfg = { theme: 'outline', size: 'large', shape: 'rectangular', width: 380, logo_alignment: 'left' };
+    
+    const container1 = document.getElementById('google-btn-container');
+    if (container1) google.accounts.id.renderButton(container1, { ...cfg, text: 'continue_with', locale: 'pt-BR' });
+    
+    const container2 = document.getElementById('google-btn-container-2');
+    if (container2) google.accounts.id.renderButton(container2, { ...cfg, text: 'continue_with', locale: 'pt-BR' });
+}
     
     function handleCredentialResponse(response) {
     fetch(`${API}/google-login`, {
