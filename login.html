@@ -469,35 +469,53 @@
         setLoading(btn, false, orig);
     }
 
+       // Substitua a sua função initGoogle() por esta:
     function initGoogle() {
-    if (!window.google) return;
+        if (!window.google) return;
 
-    google.accounts.id.initialize({
-        client_id: '681505626161-vn9aiah8dd700qdsb4bolt9qanji49u1.apps.googleusercontent.com',
-        callback: handleCredentialResponse,
-        use_fedcm_for_prompt: true // 
-    });
+        google.accounts.id.initialize({
+            client_id: '681505626161-vn9aiah8dd700qdsb4bolt9qanji49u1.apps.googleusercontent.com',
+            callback: handleCredentialResponse,
+            ux_mode: 'redirect', // 👈 MUDANÇA AQUI: Modo de redirecionamento
+            login_uri: 'https://academaxx.com.br/login' // 👈 Para onde o Google volta
+        });
 
-    const cfg = { theme: 'outline', size: 'large', shape: 'rectangular', width: 380, logo_alignment: 'left' };
-    
-    const container1 = document.getElementById('google-btn-container');
-    if (container1) google.accounts.id.renderButton(container1, { ...cfg, text: 'continue_with', locale: 'pt-BR' });
-    
-    const container2 = document.getElementById('google-btn-container-2');
-    if (container2) google.accounts.id.renderButton(container2, { ...cfg, text: 'continue_with', locale: 'pt-BR' });
-}
-    
+        const cfg = { theme: 'outline', size: 'large', shape: 'rectangular', width: 380, logo_alignment: 'left' };
+        const container1 = document.getElementById('google-btn-container');
+        if (container1) google.accounts.id.renderButton(container1, { ...cfg, text: 'continue_with', locale: 'pt-BR' });
+        
+        const container2 = document.getElementById('google-btn-container-2');
+        if (container2) google.accounts.id.renderButton(container2, { ...cfg, text: 'continue_with', locale: 'pt-BR' });
+    }
+
+    // Substitua a sua handleCredentialResponse() por esta:
     function handleCredentialResponse(response) {
-    fetch(`${API}/google-login`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential: response.credential }) // Manda o token inteiro
-    }).then(r => r.json()).then(user => {
-        if (user.error) { showToast(user.error, 'error'); return; }
-        localStorage.setItem('academax_token', data.token);
-        localStorage.setItem('academax_user', JSON.stringify(user));
-        window.location.href = '/';
-    }).catch(() => showToast('Erro de conexão.', 'error'));
-}
+        // No modo redirect, o Google não chama essa função na tela atual.
+        // Ele volta para a URL login_uri com o token na URL.
+        // Vamos processar o token que vem na URL ao carregar a página.
+        if (response.credential) {
+            fetch(`${API}/google-login`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ credential: response.credential })
+            }).then(r => r.json()).then(user => {
+                if (user.error) { showToast(user.error, 'error'); return; }
+                localStorage.setItem('academax_token', user.token);
+                localStorage.setItem('academax_user', JSON.stringify(user));
+                window.location.href = '/';
+            }).catch(() => showToast('Erro de conexão.', 'error'));
+        }
+    }
+
+    // NOVO: Verifica se o usuário voltou do Google com o token na URL
+    window.addEventListener('load', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const credential = urlParams.get('credential');
+        if (credential) {
+            handleCredentialResponse({ credential });
+            // Limpa a URL para não ficar com o token exposto
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    });
 
     function togglePw(id, icon) {
         const inp = document.getElementById(id);
