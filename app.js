@@ -666,10 +666,32 @@ function startRestTimer(seconds) {
     timeLeft = seconds;
     document.getElementById('timer-display').innerText = timeLeft;
     clearInterval(timerInterval);
+    
     timerInterval = setInterval(() => {
         timeLeft--;
         document.getElementById('timer-display').innerText = timeLeft;
-        if (timeLeft <= 0) { clearInterval(timerInterval); renderActiveSet(); }
+        
+        if (timeLeft <= 0) { 
+            clearInterval(timerInterval); 
+            
+            // NOVO: Vibrar o celular (se suportado)
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            
+            // NOVO: Tocar um bipe usando a API de áudio do navegador
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.type = 'sine';
+                oscillator.frequency.value = 880; // Frequência do som (A5)
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.3); // Toca por 0.3 segundos
+            } catch (e) { console.log('Áudio não suportado'); }
+
+            renderActiveSet(); 
+        }
     }, 1000);
 }
 

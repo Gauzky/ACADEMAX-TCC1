@@ -484,16 +484,15 @@
         }
     };
     function handleCredentialResponse(response) {
-        const data = JSON.parse(atob(response.credential.split('.')[1]));
-        fetch(`${API}/google-login`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: data.name, email: data.email, picture: data.picture })
-        }).then(r => r.json()).then(user => {
-            if (user.error) { showToast(user.error, 'error'); return; }
-            localStorage.setItem('academax_user', JSON.stringify(user));
-            window.location.href = '/';
-        }).catch(() => showToast('Erro de conexão.', 'error'));
-    }
+    fetch(`${API}/google-login`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: response.credential }) // Manda o token inteiro
+    }).then(r => r.json()).then(user => {
+        if (user.error) { showToast(user.error, 'error'); return; }
+        localStorage.setItem('academax_user', JSON.stringify(user));
+        window.location.href = '/';
+    }).catch(() => showToast('Erro de conexão.', 'error'));
+}
 
     function togglePw(id, icon) {
         const inp = document.getElementById(id);

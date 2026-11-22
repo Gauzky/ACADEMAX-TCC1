@@ -4,7 +4,10 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
 import nodemailer from 'nodemailer';
+import { OAuth2Client } from 'google-auth-library';
+import rateLimit from 'express-rate-limit';
 
+const googleClient = new OAuth2Client('681505626161-vn9aiah8dd700qdsb4bolt9qanji49u1.apps.googleusercontent.com');
 const app = express();
 const prisma = new PrismaClient();
 
@@ -14,6 +17,20 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
+
+// Limita tentativas de login e envio de códigos
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 10, // Máximo de 10 tentativas por IP
+    message: { error: 'Muitas tentativas. Tente novamente em 15 minutos.' }
+});
+
+// Aplica o limitador nas rotas sensíveis
+app.use('/api/login', authLimiter);
+app.use('/api/verify-mfa', authLimiter);
+app.use('/api/forgot-password', authLimiter);
+app.use('/api/send-verification', authLimiter);
+
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -150,29 +167,36 @@ app.post('/api/toggle-mfa', authMiddleware, async (req, res) => {
 
 // === GOOGLE LOGIN ===
 app.post('/api/google-login', async (req, res) => {
-    const { name, email, picture } = req.body;
-    if (!isValidEmail(email)) return res.status(400).json({ error: "E-mail inválido" });
-    
-    const user = await prisma.user.upsert({
-        where: { email },
-        update: { name, picture },
-        create: { name, email, picture, password: 'google_oauth' }
-    });
-    
-    res.json({ 
-        id: user.id, 
-        name: user.name, 
-        email: user.email, 
-        picture: user.picture, 
-        phone: user.phone,
-        birthdate: user.birthdate,
-        isAdmin: user.isAdmin,
-        mfaEnabled: user.mfaEnabled,
-        ficha: user.ficha,
-        goals: user.goals,
-        measures: user.measures,
-        schedule: user.schedule
-    });
+    const { credential } = req.body; // Agora esperamos o token JWT do Google
+    if (!credential) return res.status(400).json({ error: 'Token do Google não enviado' });
+
+    try {
+        // Valida o token criptograficamente com os servidores do Google
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            audience: '681505626161-vn9aiah8dd700qdsb4bolt9qanji49u1.apps.googleusercontent.com',
+        });
+        const payload = ticket.getPayload();
+        const { name, email, picture } = payload;
+
+        if (!isValidEmail(email)) return res.status(400).json({ error: "E-mail inválido" });
+        
+        const user = await prisma.user.upsert({
+            where: { email },
+            update: { name, picture },
+            create: { name, email, picture, password: 'google_oauth' }
+        });
+        
+        res.json({ 
+            id: user.id, name: user.name, email: user.email, picture: user.picture, 
+            phone: user.phone, birthdate: user.birthdate, isAdmin: user.isAdmin, 
+            mfaEnabled: user.mfaEnabled, ficha: user.ficha, goals: user.goals, 
+            measures: user.measures, schedule: user.schedule
+        });
+    } catch (e) {
+        console.error('Erro no Google Login:', e);
+        res.status(401).json({ error: 'Token do Google inválido ou expirado' });
+    }
 });
 
 // === ESQUECI SENHA ===
@@ -303,7 +327,15 @@ app.get('/api/workouts/:userId', authMiddleware, async (req, res) => {
 
 app.delete('/api/workouts/:id', authMiddleware, async (req, res) => {
     try { 
-        // Apaga o histórico vinculado antes de apagar o treino
+        // Verifica de quem é o treino antes de apagar
+        const workout = await prisma.workout.findUnique({ where: { id: req.params.id } });
+        if (!workout) return res.status(404).json({ error: 'Treino não encontrado' });
+        
+        // Se não for o dono e nem admin, bloqueia
+        if (workout.userId !== req.user.id && !req.user.isAdmin) {
+            return res.status(403).json({ error: 'Acesso negado' });
+        }
+
         await prisma.workoutSession.deleteMany({ where: { workoutId: req.params.id } });
         await prisma.workout.delete({ where: { id: req.params.id } }); 
         res.json({ message: 'Treino excluído' }); 
