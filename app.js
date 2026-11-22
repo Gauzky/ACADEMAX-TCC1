@@ -117,7 +117,7 @@ async function loadDB() {
         userGoals = loggedUser.goals || [];
         bodyMeasures = loggedUser.measures || [];
         schedule = loggedUser.schedule || {};
-
+        restoreActiveWorkoutState();
         renderDashboard();
         renderWorkouts();
         renderHistory();
@@ -612,6 +612,36 @@ let flatSets            = [];
 let timerInterval       = null;
 let timeLeft            = 0;
 
+function saveActiveWorkoutState() {
+    if (activeWorkout) {
+        localStorage.setItem('academax_active_workout', JSON.stringify({
+            activeWorkout,
+            activeExerciseIndex,
+            flatSets
+        }));
+    } else {
+        localStorage.removeItem('academax_active_workout');
+    }
+}
+
+// NOVO: Função para recuperar o treino se a página for atualizada
+function restoreActiveWorkoutState() {
+    const saved = localStorage.getItem('academax_active_workout');
+    if (saved) {
+        try {
+            const data = JSON.parse(saved);
+            // Verifica se o treino realmente tem dados válidos
+            if (data.activeWorkout && data.flatSets && data.flatSets.length > 0) {
+                activeWorkout = data.activeWorkout;
+                activeExerciseIndex = data.activeExerciseIndex;
+                flatSets = data.flatSets;
+            }
+        } catch (e) {
+            localStorage.removeItem('academax_active_workout');
+        }
+    }
+}
+
 function startWorkout(workoutId) {
     if (!workoutId && DB.workouts.length > 0) workoutId = DB.workouts[0].id;
     activeWorkout = DB.workouts.find(w => w.id === workoutId);
@@ -626,6 +656,7 @@ function startWorkout(workoutId) {
     activeExerciseIndex = 0;
     navigateTo('active-workout');
     renderActiveSet();
+    saveActiveWorkoutState();
 }
 
 function resumeWorkout() {
@@ -657,6 +688,7 @@ function completeSet() {
     s.actualReps   = parseInt(document.getElementById('active-reps').value);
     s.actualWeight = parseFloat(document.getElementById('active-weight').value);
     activeExerciseIndex++;
+    saveActiveWorkoutState();
     startRestTimer(s.restTime);
 }
 
@@ -719,6 +751,7 @@ async function finishWorkout() {
         showToast(`🎉 Treino concluído! ${volume.toFixed(1)} kg de volume.`, 'success');
     }
     activeWorkout = null; activeExerciseIndex = 0; flatSets = [];
+     localStorage.removeItem('academax_active_workout');
     navigateTo('dashboard');
 }
 
