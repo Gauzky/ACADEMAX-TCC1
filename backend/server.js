@@ -66,9 +66,10 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+    
     const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) return res.status(401).json({ error: 'Senha incorreta' });
+    if (!isValid) return res.status(401).json({ error: "Senha incorreta" });
     
     if (user.mfaEnabled) {
         const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -76,7 +77,8 @@ app.post('/api/login', async (req, res) => {
         try {
             await transporter.sendMail({
                 from: `"AcadeMax" <${process.env.EMAIL_USER}>`,
-                to: email, subject: '🔐 Seu código — AcadeMax',
+                to: email,
+                subject: '🔐 Seu código — AcadeMax',
                 html: `<div style="font-family:Arial;max-width:400px;margin:auto;background:#111114;border-radius:16px;padding:32px;">
                     <h2 style="color:#f4f4f5;text-align:center;">Código de Verificação</h2>
                     <p style="color:#a1a1aa;text-align:center;">Use o código abaixo:</p>
@@ -89,8 +91,21 @@ app.post('/api/login', async (req, res) => {
         } catch(e) { console.error('Erro MFA:', e); }
         return res.json({ requiresMFA: true, email });
     }
-    res.json({ id: user.id, name: user.name, email: user.email, picture: user.picture,
-               phone: user.phone, isAdmin: user.isAdmin, mfaEnabled: user.mfaEnabled });
+    
+    res.json({ 
+        id: user.id, 
+        name: user.name, 
+        email: user.email, 
+        picture: user.picture, 
+        phone: user.phone,
+        birthdate: user.birthdate,
+        isAdmin: user.isAdmin,
+        mfaEnabled: user.mfaEnabled,
+        ficha: user.ficha,
+        goals: user.goals,
+        measures: user.measures,
+        schedule: user.schedule
+    });
 });
 
 // === VERIFICAR MFA ===
@@ -102,8 +117,20 @@ app.post('/api/verify-mfa', async (req, res) => {
     if (record.code !== code) return res.status(401).json({ error: 'Código incorreto' });
     mfaCodes.delete(email);
     const user = await prisma.user.findUnique({ where: { email } });
-    res.json({ id: user.id, name: user.name, email: user.email, picture: user.picture,
-               phone: user.phone, isAdmin: user.isAdmin, mfaEnabled: user.mfaEnabled });
+    res.json({ 
+        id: user.id, 
+        name: user.name, 
+        email: user.email, 
+        picture: user.picture, 
+        phone: user.phone,
+        birthdate: user.birthdate,
+        isAdmin: user.isAdmin,
+        mfaEnabled: user.mfaEnabled,
+        ficha: user.ficha,
+        goals: user.goals,
+        measures: user.measures,
+        schedule: user.schedule
+    });
 });
 
 // === TOGGLE MFA ===
@@ -118,14 +145,28 @@ app.post('/api/toggle-mfa', authMiddleware, async (req, res) => {
 // === GOOGLE LOGIN ===
 app.post('/api/google-login', async (req, res) => {
     const { name, email, picture } = req.body;
-    if (!isValidEmail(email)) return res.status(400).json({ error: 'E-mail inválido' });
+    if (!isValidEmail(email)) return res.status(400).json({ error: "E-mail inválido" });
+    
     const user = await prisma.user.upsert({
         where: { email },
         update: { name, picture },
         create: { name, email, picture, password: 'google_oauth' }
     });
-    res.json({ id: user.id, name: user.name, email: user.email, picture: user.picture,
-               phone: user.phone, isAdmin: user.isAdmin, mfaEnabled: user.mfaEnabled });
+    
+    res.json({ 
+        id: user.id, 
+        name: user.name, 
+        email: user.email, 
+        picture: user.picture, 
+        phone: user.phone,
+        birthdate: user.birthdate,
+        isAdmin: user.isAdmin,
+        mfaEnabled: user.mfaEnabled,
+        ficha: user.ficha,
+        goals: user.goals,
+        measures: user.measures,
+        schedule: user.schedule
+    });
 });
 
 // === ESQUECI SENHA ===
