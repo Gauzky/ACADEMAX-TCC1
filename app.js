@@ -1498,16 +1498,6 @@ function loadMeasuresView() {
             </div>
             <button class="btn-primary btn-full" onclick="saveMeasure()"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
         </div>
-
-        <!-- NOVO: Gráfico de Radar -->
-        <div class="card">
-            <h3 class="card-label">Evolução Corporal (Radar)</h3>
-            <p style="font-size:12px;color:var(--text-3);margin-bottom:12px;">Comparação com a última medida registrada.</p>
-          <div style="position: relative; height: 300px; width: 100%; margin-top: 10px;">
-                <canvas id="bodyRadarChart"></canvas>
-            </div>
-        </div>
-
         <div class="card">
             <h3 class="card-label">Histórico de Peso</h3>
             <div style="height: 200px; margin-top: 15px;"><canvas id="measuresChart"></canvas></div>
@@ -1516,7 +1506,6 @@ function loadMeasuresView() {
     `;
     renderMeasuresList();
     renderMeasuresChart();
-    renderBodyRadarChart(); 
 }
 
 async function saveMeasure() {
@@ -1581,87 +1570,6 @@ async function deleteMeasure(id) {
     }
 }
 
-let bodyRadarChart = null;
-
-function renderBodyRadarChart() {
-    const ctx = document.getElementById('bodyRadarChart');
-    if (!ctx) return;
-    if (bodyRadarChart) bodyRadarChart.destroy();
-
-    // Se não tiver nenhuma medida salva, mostra um aviso
-    if (bodyMeasures.length === 0) {
-        const parent = ctx.parentElement;
-        parent.innerHTML = `
-            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-3);">
-                <i class="fa-solid fa-chart-pie" style="font-size:40px; margin-bottom:12px; opacity:0.5;"></i>
-                <p style="font-size:14px;">Registre sua primeira medida para ver o gráfico.</p>
-            </div>
-        `;
-        return;
-    }
-
-    const latest = bodyMeasures[bodyMeasures.length - 1];
-    const prev = bodyMeasures.length > 1 ? bodyMeasures[bodyMeasures.length - 2] : null;
-
-    const dataAtual = [latest.arm || 0, latest.chest || 0, latest.waist || 0, latest.thigh || 0];
-    const dataAnterior = prev ? [prev.arm || 0, prev.chest || 0, prev.waist || 0, prev.thigh || 0] : null;
-
-    const labels = ['Braço', 'Peito', 'Cintura', 'Coxa'];
-    
-    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6366f1';
-    const isLight = document.body.classList.contains('light');
-    const textColor = isLight ? '#18181b' : '#f4f4f5';
-    const gridColor = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)';
-
-    const datasets = [{
-        label: 'Atual',
-        data: dataAtual,
-        backgroundColor: `${accent}40`,
-        borderColor: accent,
-        pointBackgroundColor: accent,
-        borderWidth: 2,
-        pointRadius: 4
-    }];
-
-    if (dataAnterior) {
-        datasets.push({
-            label: 'Anterior',
-            data: dataAnterior,
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            borderColor: '#ef4444',
-            pointBackgroundColor: '#ef4444',
-            borderWidth: 2,
-            borderDash: [5, 5],
-            pointRadius: 3
-        });
-    }
-
-    bodyRadarChart = new Chart(ctx.getContext('2d'), {
-        type: 'radar',
-        data: {
-            labels: labels,
-            datasets: datasets
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { 
-                    position: 'bottom',
-                    labels: { color: textColor, font: { family: 'DM Sans', size: 12 }, padding: 20 } 
-                }
-            },
-            scales: {
-                r: {
-                    angleLines: { color: gridColor },
-                    grid: { color: gridColor },
-                    pointLabels: { color: textColor, font: { family: 'DM Sans', size: 12, weight: 'bold' } },
-                    ticks: { display: false, min: 0 }
-                }
-            }
-        }
-    });
-}
 // =============================================
 // === CONQUISTAS (GAMIFICAÇÃO) ===
 // =============================================
