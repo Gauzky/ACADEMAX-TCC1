@@ -9,18 +9,22 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  picture   String?
-  phone     String?
-  birthdate String?
-  isAdmin   Boolean  @default(false)
-  mfaEnabled Boolean @default(false)
-  createdAt DateTime @default(now())
-  workouts  Workout[]
-  sessions  WorkoutSession[]
+  id         String   @id @default(cuid())
+  name       String
+  email      String   @unique
+  password   String
+  picture    String?
+  phone      String?
+  birthdate  String?
+  isAdmin    Boolean  @default(false)
+  mfaEnabled Boolean  @default(false)
+  ficha      Json?
+  goals      Json?
+  measures   Json?
+  schedule   Json?
+  createdAt  DateTime @default(now())
+  workouts   Workout[]
+  sessions   WorkoutSession[]
 }
 
 model Workout {
