@@ -47,3 +47,19 @@ model WorkoutSession {
   user      User     @relation(fields: [userId], references: [id])
   workout   Workout  @relation(fields: [workoutId], references: [id])
 }
+
+model MfaCode {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  code      String
+  expiry    DateTime
+  createdAt DateTime @default(now())
+}
+
+model ResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  email     String
+  expiry    DateTime
+  createdAt DateTime @default(now())
+}

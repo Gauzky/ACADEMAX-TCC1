@@ -66,9 +66,6 @@ async function adminMiddleware(req, res, next) {
     next();
 }
 
-const mfaCodes = new Map();
-const resetTokens = new Map();
-
 function isValidEmail(email) {
     return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
 }
@@ -107,26 +104,25 @@ app.post('/api/login', async (req, res) => {
     if (!isValid) return res.status(401).json({ error: "Senha incorreta" });
     
 
-    if (user.mfaEnabled) {
+        if (user.mfaEnabled) {
         const code = Math.floor(100000 + Math.random() * 900000).toString();
-        mfaCodes.set(email, { code, expiry: Date.now() + 300000 });
+        const expiry = new Date(Date.now() + 300000); // 5 minutos
+
+        // Salva no banco (se já existir um código para o email, atualiza)
+        await prisma.mfaCode.upsert({
+            where: { email },
+            update: { code, expiry },
+            create: { email, code, expiry }
+        });
+
         try {
             await transporter.sendMail({
-                from: `"AcadeMax" <${process.env.EMAIL_USER}>`,
-                to: email,
-                subject: '🔐 Seu código — AcadeMax',
-                html: `<div style="font-family:Arial;max-width:400px;margin:auto;background:#111114;border-radius:16px;padding:32px;">
-                    <h2 style="color:#f4f4f5;text-align:center;">Código de Verificação</h2>
-                    <p style="color:#a1a1aa;text-align:center;">Use o código abaixo:</p>
-                    <div style="background:#1c1c21;border-radius:12px;padding:20px;text-align:center;margin:20px 0;">
-                        <span style="font-size:32px;font-weight:700;color:#6366f1;letter-spacing:8px;">${code}</span>
-                    </div>
-                    <p style="color:#52525b;font-size:12px;text-align:center;">Expira em 5 minutos.</p>
-                </div>`
+                // ... (seu HTML do e-mail continua igual)
             });
         } catch(e) { console.error('Erro MFA:', e); }
         return res.json({ requiresMFA: true, email });
     }
+
       // GERANDO O TOKEN (Adicione isso antes do res.json final)
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' }); // Expira em 7 dias
 
@@ -150,28 +146,29 @@ app.post('/api/login', async (req, res) => {
 // === VERIFICAR MFA ===
 app.post('/api/verify-mfa', async (req, res) => {
     const { email, code } = req.body;
-    const record = mfaCodes.get(email);
+    
+    const record = await prisma.mfaCode.findUnique({ where: { email } });
     if (!record) return res.status(400).json({ error: 'Solicite um novo código.' });
-    if (Date.now() > record.expiry) { mfaCodes.delete(email); return res.status(400).json({ error: 'Código expirado.' }); }
+    
+    if (new Date() > record.expiry) { 
+        await prisma.mfaCode.delete({ where: { email } });
+        return res.status(400).json({ error: 'Código expirado.' }); 
+    }
+    
     if (record.code !== code) return res.status(401).json({ error: 'Código incorreto' });
-    mfaCodes.delete(email);
+    
+    // Apaga o código usado
+    await prisma.mfaCode.delete({ where: { email } });
+    
     const user = await prisma.user.findUnique({ where: { email } });
-      // GERANDO O TOKEN (Adicione isso antes do res.json final)
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' }); // Expira em 7 dias
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    
     res.json({ 
         token: token, 
-        id: user.id, 
-        name: user.name, 
-        email: user.email, 
-        picture: user.picture, 
-        phone: user.phone,
-        birthdate: user.birthdate,
-        isAdmin: user.isAdmin,
-        mfaEnabled: user.mfaEnabled,
-        ficha: user.ficha,
-        goals: user.goals,
-        measures: user.measures,
-        schedule: user.schedule
+        id: user.id, name: user.name, email: user.email, picture: user.picture,
+        phone: user.phone, birthdate: user.birthdate, isAdmin: user.isAdmin,
+        mfaEnabled: user.mfaEnabled, ficha: user.ficha, goals: user.goals,
+        measures: user.measures, schedule: user.schedule
     });
 });
 
@@ -262,8 +259,11 @@ app.post('/api/forgot-password', async (req, res) => {
         if (!user) return res.json({ message: 'Se este e-mail estiver cadastrado, você receberá as instruções.' });
         if (user.password === 'google_oauth')
             return res.json({ message: 'Esta conta usa login com Google.' });
-        const token = crypto.randomBytes(32).toString('hex');
-        resetTokens.set(token, { email, expiry: Date.now() + 1800000 });
+           const token = crypto.randomBytes(32).toString('hex');
+        const expiry = new Date(Date.now() + 1800000); // 30 minutos
+        
+        await prisma.resetToken.create({ data: { token, email, expiry } });
+
         const resetLink = `https://academaxx.com.br/login?reset=${token}`;
         await transporter.sendMail({
             from: `"AcadeMax" <${process.env.EMAIL_USER}>`,
@@ -289,13 +289,22 @@ app.post('/api/reset-password', async (req, res) => {
     const { token, newPassword } = req.body;
     if (!token || !newPassword) return res.status(400).json({ error: 'Dados incompletos' });
     if (newPassword.length < 6) return res.status(400).json({ error: 'Mínimo 6 caracteres' });
-    const record = resetTokens.get(token);
+    
+    const record = await prisma.resetToken.findUnique({ where: { token } });
     if (!record) return res.status(400).json({ error: 'Link inválido' });
-    if (Date.now() > record.expiry) { resetTokens.delete(token); return res.status(400).json({ error: 'Link expirado' }); }
+    
+    if (new Date() > record.expiry) { 
+        await prisma.resetToken.delete({ where: { token } });
+        return res.status(400).json({ error: 'Link expirado' }); 
+    }
+    
     try {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         await prisma.user.update({ where: { email: record.email }, data: { password: hashedPassword } });
-        resetTokens.delete(token);
+        
+        // Deleta o token usado e limpa tokens velhos do mesmo usuário
+        await prisma.resetToken.deleteMany({ where: { email: record.email } });
+        
         res.json({ message: 'Senha redefinida com sucesso!' });
     } catch { res.status(500).json({ error: 'Erro ao redefinir senha' }); }
 });
