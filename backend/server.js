@@ -229,6 +229,19 @@ app.get('/api/users', authMiddleware, adminMiddleware, async (req, res) => {
     });
     res.json(users);
 });
+// === BUSCAR PERFIL DO USUÁRIO LOGADO (NOVO) ===
+app.get('/api/users/:id', authMiddleware, async (req, res) => {
+    if (req.user.id !== req.params.id && !req.user.isAdmin) {
+        return res.status(403).json({ error: 'Acesso negado' });
+    }
+    try {
+        const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao buscar usuário' });
+    }
+});
 
 // === UPLOAD AVATAR ===
 app.post('/api/users/:id/avatar', authMiddleware, async (req, res) => {

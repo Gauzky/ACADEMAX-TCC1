@@ -18,11 +18,18 @@ async function authFetch(url, options = {}) {
     options.headers = options.headers || {};
     options.headers['x-user-id'] = loggedUser.id;
     const res = await fetch(url, options);
+    
     if (res.status === 401) {
         showToast('Sessão expirada. Faça login novamente.', 'warning');
         localStorage.removeItem('academax_user');
         setTimeout(() => window.location.href = '/login', 1500);
         throw new Error('Unauthorized');
+    }
+    
+    // NOVO: Se der erro 500 (ex: banco não salvou), avisa no código
+    if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Erro na requisição');
     }
     return res;
 }
@@ -91,14 +98,22 @@ function setButtonLoading(btn, loading) {
 // =============================================
 async function loadDB() {
     try {
-        const [resW, resH] = await Promise.all([
+        // NOVO: Agora busca o usuário, os treinos e o histórico ao mesmo tempo
+        const [resU, resW, resH] = await Promise.all([
+            authFetch(`${API}/users/${loggedUser.id}`),
             authFetch(`${API}/workouts/${loggedUser.id}`),
             authFetch(`${API}/history/${loggedUser.id}`)
         ]);
+        
+        // NOVO: Pega os dados atualizados do banco e salva no navegador
+        const freshUser = await resU.json();
+        Object.assign(loggedUser, freshUser);
+        localStorage.setItem('academax_user', JSON.stringify(loggedUser));
+        
         DB.workouts = await resW.json();
         DB.history  = await resH.json();
         
-        // Carrega dados do usuário do banco
+        // Carrega dados atualizados do banco na memória do app
         userGoals = loggedUser.goals || [];
         bodyMeasures = loggedUser.measures || [];
         schedule = loggedUser.schedule || {};
@@ -107,7 +122,8 @@ async function loadDB() {
         renderWorkouts();
         renderHistory();
     } catch (err) {
-        showToast('Erro ao conectar com o servidor.', 'warning');
+        console.error(err);
+        showToast(err.message || 'Erro ao conectar com o servidor.', 'warning');
     }
 }
 
@@ -570,7 +586,7 @@ async function saveNewWorkout() {
                 if (w) { w.name = name; w.desc = desc; w.exercises = tempExercisesToAdd; }
                 showToast('Treino atualizado!', 'success');
             } else {
-                DB.workouts.push(savedWorkout); // <--- USA O ID REAL DO BANCO AQUI
+                DB.workouts.push(savedWorkout); // <--- Usa o ID real do banco
                 showToast('Treino criado!', 'success');
             }
             renderWorkouts();
@@ -580,13 +596,13 @@ async function saveNewWorkout() {
         }
     } catch (e) {
         showToast('Erro ao criar treino.', 'error');
+        console.error(e);
     }
 
     editingWorkoutId = null; targetUserIdForWorkout = null;
     setButtonLoading(btn, false);
     closeCreateModal();
 }
-
 // =============================================
 // === TREINO ATIVO ===
 // =============================================
@@ -1183,15 +1199,18 @@ async function saveFicha() {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ficha: fichaData })
         });
-    } catch (e) { console.log(e); }
-    
-    loggedUser.ficha = fichaData;
-    localStorage.setItem('academax_user', JSON.stringify(loggedUser));
-    showToast('Ficha salva!', 'success');
-    setButtonLoading(btn, false);
-    loadProfileData();
+        // Só salva localmente se o servidor confirmar
+        loggedUser.ficha = fichaData;
+        localStorage.setItem('academax_user', JSON.stringify(loggedUser));
+        showToast('Ficha salva!', 'success');
+        setButtonLoading(btn, false);
+        loadProfileData();
+    } catch (e) {
+        showToast('Erro ao salvar ficha no banco.', 'error');
+        console.error(e);
+        setButtonLoading(btn, false);
+    }
 }
-
 function showFichaForm() {
     const form    = document.getElementById('ficha-form-container');
     const preview = document.getElementById('ficha-preview');
@@ -1379,7 +1398,10 @@ async function saveAdminFicha(clientId) {
         const i = globalClients.findIndex(u => u.id === clientId);
         if (i >= 0) globalClients[i].ficha = fichaData;
         showToast('Ficha salva!', 'success');
-    } catch (e) { showToast('Erro ao salvar.', 'error'); }
+    } catch (e) { 
+        showToast('Erro ao salvar ficha.', 'error'); 
+        console.error(e);
+    }
     setButtonLoading(btn, false);
 }
 
@@ -1438,7 +1460,7 @@ async function saveMeasure() {
     bodyMeasures.push(m);
     bodyMeasures.sort((a, b) => new Date(a.date) - new Date(b.date));
     
-    loggedUser.measures = bodyMeasures; // Atualiza cache local
+    loggedUser.measures = bodyMeasures;
     localStorage.setItem('academax_user', JSON.stringify(loggedUser));
 
     try {
@@ -1447,10 +1469,12 @@ async function saveMeasure() {
             body: JSON.stringify({ measures: bodyMeasures })
         });
         showToast('Medida registrada no banco!', 'success');
-    } catch (e) { showToast('Erro ao salvar no banco', 'error'); }
+    } catch (e) { 
+        showToast('Erro ao salvar no banco de dados!', 'error'); 
+        console.error(e);
+    }
     loadMeasuresView();
 }
-
 function renderMeasuresList() {
     const list = document.getElementById('measures-list');
     if (!list) return;
@@ -1466,14 +1490,21 @@ function renderMeasuresList() {
 }
 
 async function deleteMeasure(id) {
+    const oldMeasures = [...bodyMeasures];
     bodyMeasures = bodyMeasures.filter(m => m.id !== id);
     try {
         await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ measures: bodyMeasures })
         });
-    } catch (e) {}
-    loadMeasuresView();
+        loggedUser.measures = bodyMeasures;
+        localStorage.setItem('academax_user', JSON.stringify(loggedUser));
+        loadMeasuresView();
+    } catch (e) {
+        bodyMeasures = oldMeasures; // Reverte se der erro
+        showToast('Erro ao excluir medida.', 'error');
+        console.error(e);
+    }
 }
 
 let measuresChart = null;
@@ -1600,18 +1631,18 @@ async function setScheduleWorkout(dayIndex, workoutId) {
         schedule[dayIndex] = { workoutId: workoutId };
     }
     
-    loggedUser.schedule = schedule; // Atualiza cache local
-    localStorage.setItem('academax_user', JSON.stringify(loggedUser));
-
     try {
         await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ schedule: schedule })
         });
+        loggedUser.schedule = schedule;
+        localStorage.setItem('academax_user', JSON.stringify(loggedUser));
         showToast('Agenda salva!', 'success');
         loadScheduleView();
     } catch (e) { 
-        showToast('Erro ao salvar', 'error'); 
+        showToast('Erro ao salvar agenda.', 'error'); 
+        console.error(e);
     }
 }
 
@@ -1922,32 +1953,41 @@ async function saveGoal() {
     }
 
     userGoals.push(goal);
-    
-    loggedUser.goals = userGoals; // Atualiza cache local
-    localStorage.setItem('academax_user', JSON.stringify(loggedUser));
 
     try {
         await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ goals: userGoals })
         });
+        loggedUser.goals = userGoals;
+        localStorage.setItem('academax_user', JSON.stringify(loggedUser));
         showToast('Meta criada e salva no banco! 🎯', 'success');
-    } catch (e) { showToast('Erro ao salvar meta', 'error'); }
-    hideGoalForm();
-    loadGoalsView();
+        hideGoalForm();
+        loadGoalsView();
+    } catch (e) { 
+        userGoals.pop(); // Remove a meta da memória se der erro
+        showToast('Erro ao salvar meta.', 'error'); 
+        console.error(e);
+    }
 }
-
 function deleteGoal(id) {
     showConfirm('Excluir meta', 'Deseja remover esta meta?', '🗑️', async () => {
+        const oldGoals = [...userGoals];
         userGoals = userGoals.filter(g => g.id !== id);
         try {
             await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
                 method: 'PUT', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ goals: userGoals })
             });
-        } catch (e) {}
-        showToast('Meta removida.', 'info');
-        loadGoalsView();
+            loggedUser.goals = userGoals;
+            localStorage.setItem('academax_user', JSON.stringify(loggedUser));
+            showToast('Meta removida.', 'info');
+            loadGoalsView();
+        } catch (e) {
+            userGoals = oldGoals; // Reverte se der erro
+            showToast('Erro ao excluir meta.', 'error');
+            console.error(e);
+        }
     });
 }
 
