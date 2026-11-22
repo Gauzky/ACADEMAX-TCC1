@@ -1699,21 +1699,20 @@ function loadGoalsView() {
     const goalsWithProgress = userGoals.map(g => {
         let current = 0;
         if (g.type === 'strength') {
-            // Pega a maior carga do exercício no histórico
             const exRecords = [];
             DB.history.forEach(h => h.sets.forEach(s => {
                 if (s.exName === g.exercise && s.actualWeight) exRecords.push(s.actualWeight);
             }));
             current = exRecords.length > 0 ? Math.max(...exRecords) : 0;
         } else if (g.type === 'body') {
-            const measures = JSON.parse(localStorage.getItem('academax_measures') || '[]');
-            if (measures.length > 0) {
-                const latest = measures[measures.length - 1];
-                const first = measures[0];
+            // --- CORREÇÃO AQUI: Usa a variável global bodyMeasures e aceita valores negativos ---
+            if (bodyMeasures.length > 0) {
+                const latest = bodyMeasures[bodyMeasures.length - 1];
+                const first = bodyMeasures[0];
                 if (g.direction === 'lose') {
-                    current = Math.max(0, (first.weight - latest.weight));
+                    current = first.weight - latest.weight; // Pode ficar negativo se engordou
                 } else {
-                    current = Math.max(0, (latest.weight - first.weight));
+                    current = latest.weight - first.weight;
                 }
             }
         } else if (g.type === 'frequency') {
@@ -1723,13 +1722,14 @@ function loadGoalsView() {
             const monthAgo = new Date(Date.now() - 30 * 86400000);
             current = DB.history.filter(h => new Date(h.date) > monthAgo).reduce((s, h) => s + h.volume, 0);
         }
+        
         g.current = current;
-        g.progress = g.target > 0 ? Math.min(100, (current / g.target) * 100) : 0;
-        g.completed = g.current >= g.target;
+        // Garante que a barra de progresso não fique menor que 0% nem maior que 100%
+        g.progress = g.target > 0 ? Math.min(100, Math.max(0, (current / g.target) * 100)) : 0;
+        g.completed = current >= g.target;
         return g;
     });
 
-    // Atualiza conquistas de metas
     const completedCount = goalsWithProgress.filter(g => g.completed).length;
 
     el.innerHTML = `
@@ -1781,7 +1781,13 @@ function loadGoalsView() {
 function renderGoalCard(g) {
     const type = goalTypes.find(t => t.id === g.type);
     if (!type) return '';
+    
+    // Exibe 0 no progresso se o usuário estiver negativo (ex: engordou em vez de emagrecer)
+    const displayCurrent = Math.max(0, g.current);
+    
+    // Calcula o quanto falta real (se g.current for -2, o remaining será 8)
     const remaining = Math.max(0, g.target - g.current);
+    
     const remainingText = g.type === 'frequency' ? `${remaining} treino${remaining !== 1 ? 's' : ''}` : g.type === 'volume' ? `${remaining.toFixed(0)} kg` : `${remaining.toFixed(1)} ${type.unit}`;
     
     let extraInfo = '';
@@ -1802,12 +1808,14 @@ function renderGoalCard(g) {
             <div class="goal-progress-section">
                 ${extraInfo}
                 <div class="goal-progress-bar"><div class="goal-progress-fill" style="width:${g.progress}%;background:${type.color};"></div></div>
-                <div class="goal-stats"><span>Progresso: <strong style="color:${type.color};">${g.current.toFixed(g.type === 'volume' ? 0 : 1)} ${type.unit}</strong></span><span>Meta: <strong>${g.target} ${type.unit}</strong></span></div>
+                <div class="goal-stats">
+                    <span>Progresso: <strong style="color:${type.color};">${displayCurrent.toFixed(g.type === 'volume' ? 0 : 1)} ${type.unit}</strong></span>
+                    <span>Meta: <strong>${g.target} ${type.unit}</strong></span>
+                </div>
             </div>
             ${g.completed ? `<div class="goal-completed-badge"><i class="fa-solid fa-trophy"></i> Meta concluída! 🎉</div>` : `<div class="goal-remaining">Faltam <strong style="color:${type.color};">${remainingText}</strong></div>`}
         </div>`;
 }
-
 function showGoalForm() {
     const container = document.getElementById('goal-form-container');
     if (!container) return;
