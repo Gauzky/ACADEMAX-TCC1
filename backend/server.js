@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import nodemailer from 'nodemailer';
 import { OAuth2Client } from 'google-auth-library';
 import rateLimit from 'express-rate-limit';
+import jwt from 'jsonwebtoken';
 
 const googleClient = new OAuth2Client('681505626161-vn9aiah8dd700qdsb4bolt9qanji49u1.apps.googleusercontent.com');
 const app = express();
@@ -38,14 +39,26 @@ const transporter = nodemailer.createTransport({
 });
 
 async function authMiddleware(req, res, next) {
-    const userId = req.headers['x-user-id'];
-    if (!userId) return res.status(401).json({ error: 'Não autorizado' });
+    // Agora lemos o Token do cabeçalho Authorization
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Não autorizado. Token não fornecido.' });
+    }
+
+    const token = authHeader.split(' ')[1]; // Pega só o token, tira o "Bearer "
+
     try {
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) return res.status(401).json({ error: 'Usuário inválido' });
-        req.user = user;
+        // Verifica se o token é válido e não foi adulterado
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+        if (!user) return res.status(401).json({ error: 'Usuário não encontrado' });
+        
+        req.user = user; // Salva o usuário na requisição
         next();
-    } catch { res.status(401).json({ error: 'Sessão expirada' }); }
+    } catch (err) {
+        res.status(401).json({ error: 'Sessão expirada ou token inválido.' });
+    }
 }
 
 async function adminMiddleware(req, res, next) {
@@ -114,8 +127,11 @@ app.post('/api/login', async (req, res) => {
         } catch(e) { console.error('Erro MFA:', e); }
         return res.json({ requiresMFA: true, email });
     }
-    
+      // GERANDO O TOKEN (Adicione isso antes do res.json final)
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' }); // Expira em 7 dias
+
     res.json({ 
+        token: token, 
         id: user.id, 
         name: user.name, 
         email: user.email, 
@@ -140,7 +156,10 @@ app.post('/api/verify-mfa', async (req, res) => {
     if (record.code !== code) return res.status(401).json({ error: 'Código incorreto' });
     mfaCodes.delete(email);
     const user = await prisma.user.findUnique({ where: { email } });
+      // GERANDO O TOKEN (Adicione isso antes do res.json final)
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' }); // Expira em 7 dias
     res.json({ 
+        token: token, 
         id: user.id, 
         name: user.name, 
         email: user.email, 
@@ -186,9 +205,11 @@ app.post('/api/google-login', async (req, res) => {
             update: { name, picture },
             create: { name, email, picture, password: 'google_oauth' }
         });
-        
-        res.json({ 
-            id: user.id, name: user.name, email: user.email, picture: user.picture, 
+          // GERANDO O TOKEN (Adicione isso antes do res.json final)
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' }); // Expira em 7 dias
+
+    res.json({ 
+            token: token,id: user.id, name: user.name, email: user.email, picture: user.picture, 
             phone: user.phone, birthdate: user.birthdate, isAdmin: user.isAdmin, 
             mfaEnabled: user.mfaEnabled, ficha: user.ficha, goals: user.goals, 
             measures: user.measures, schedule: user.schedule
@@ -418,7 +439,8 @@ app.post('/api/verify-registration', async (req, res) => {
             data: { name, email, password: hashedPassword, birthdate,
                     isAdmin: email === 'admin@academaxx.com.br' }
         });
-        res.json({ id: user.id, name: user.name, email: user.email, isAdmin: user.isAdmin });
+        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+        res.json({  token: token,id: user.id, name: user.name, email: user.email, isAdmin: user.isAdmin });
     } catch {
         res.status(400).json({ error: 'E-mail já cadastrado' });
     }

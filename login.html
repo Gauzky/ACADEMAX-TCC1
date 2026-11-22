@@ -466,6 +466,8 @@
             });
             const data = await r.json();
             if (data.error) { showToast(data.error, 'error'); setLoading(btn, false, orig); return; }
+        // NOVO: Salva o Token JWT
+            localStorage.setItem('academax_token', data.token);
             localStorage.setItem('academax_user', JSON.stringify(data));
             window.location.href = '/';
         } catch (e) { showToast('Erro de conexão.', 'error'); }
@@ -489,6 +491,7 @@
         body: JSON.stringify({ credential: response.credential }) // Manda o token inteiro
     }).then(r => r.json()).then(user => {
         if (user.error) { showToast(user.error, 'error'); return; }
+        localStorage.setItem('academax_token', data.token);
         localStorage.setItem('academax_user', JSON.stringify(user));
         window.location.href = '/';
     }).catch(() => showToast('Erro de conexão.', 'error'));
@@ -518,6 +521,9 @@
                 setLoading(btn, false, orig);
                 return;
             }
+
+            // NOVO: Salva o Token JWT
+            localStorage.setItem('academax_token', data.token);
             localStorage.setItem('academax_user', JSON.stringify(data));
             window.location.href = '/';
         }).catch(() => { showToast('Erro de conexão.', 'error'); setLoading(btn, false, orig); });
@@ -574,6 +580,7 @@
             const data = await r.json();
             if (data.error) { showToast(data.error, 'error'); setLoading(btn, false, orig); return; }
             
+            localStorage.setItem('academax_token', data.token);
             localStorage.setItem('academax_user', JSON.stringify(data));
             showToast('Cadastro confirmado! Bem-vindo!', 'success');
             window.location.href = '/';

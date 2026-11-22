@@ -1,12 +1,13 @@
 // =============================================
 // === INICIALIZAÇÃO ===
 // =============================================
-if (!localStorage.getItem('academax_user')) {
+if (!localStorage.getItem('academax_user') || !localStorage.getItem('academax_token')) {
     const legacy = localStorage.getItem('gympro_user');
     if (legacy) {
         localStorage.setItem('academax_user', legacy);
         localStorage.removeItem('gympro_user');
     } else {
+        // Redireciona para o login se não tiver usuário OU se não tiver o token
         window.location.href = '/login';
     }
 }
@@ -16,17 +17,23 @@ const API = 'https://academaxx.com.br/api';
 // Helper: fetch com header de autenticação
 async function authFetch(url, options = {}) {
     options.headers = options.headers || {};
-    options.headers['x-user-id'] = loggedUser.id;
+    // Pega o token do localStorage
+    const token = localStorage.getItem('academax_token'); 
+    
+    if (token) {
+        options.headers['Authorization'] = `Bearer ${token}`; // Envia o token
+    }
+    
     const res = await fetch(url, options);
     
     if (res.status === 401) {
         showToast('Sessão expirada. Faça login novamente.', 'warning');
         localStorage.removeItem('academax_user');
+        localStorage.removeItem('academax_token');
         setTimeout(() => window.location.href = '/login', 1500);
         throw new Error('Unauthorized');
     }
     
-    // NOVO: Se der erro 500 (ex: banco não salvou), avisa no código
     if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || 'Erro na requisição');
@@ -1167,6 +1174,7 @@ function confirmLogout() {
 }
 function logout() {
     localStorage.removeItem('academax_user');
+    localStorage.removeItem('academax_token'); // <--- NOVO
     window.location.href = '/login';
 }
 
