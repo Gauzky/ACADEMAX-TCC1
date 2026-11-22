@@ -97,6 +97,12 @@ async function loadDB() {
         ]);
         DB.workouts = await resW.json();
         DB.history  = await resH.json();
+        
+        // Carrega dados do usuário do banco
+        userGoals = loggedUser.goals || [];
+        bodyMeasures = loggedUser.measures || [];
+        schedule = loggedUser.schedule || {};
+
         renderDashboard();
         renderWorkouts();
         renderHistory();
@@ -1410,7 +1416,7 @@ function loadMeasuresView() {
     renderMeasuresChart();
 }
 
-function saveMeasure() {
+async function saveMeasure() {
     const m = {
         id: Date.now().toString(),
         date: document.getElementById('meas-date').value,
@@ -1423,8 +1429,14 @@ function saveMeasure() {
     if (!m.weight) { showToast('Digite o peso!', 'warning'); return; }
     bodyMeasures.push(m);
     bodyMeasures.sort((a, b) => new Date(a.date) - new Date(b.date));
-    localStorage.setItem('academax_measures', JSON.stringify(bodyMeasures));
-    showToast('Medida registrada!', 'success');
+    
+    try {
+        await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ measures: bodyMeasures })
+        });
+        showToast('Medida registrada no banco!', 'success');
+    } catch (e) { showToast('Erro ao salvar no banco', 'error'); }
     loadMeasuresView();
 }
 
@@ -1442,9 +1454,14 @@ function renderMeasuresList() {
         </div>`).join('');
 }
 
-function deleteMeasure(id) {
+async function deleteMeasure(id) {
     bodyMeasures = bodyMeasures.filter(m => m.id !== id);
-    localStorage.setItem('academax_measures', JSON.stringify(bodyMeasures));
+    try {
+        await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ measures: bodyMeasures })
+        });
+    } catch (e) {}
     loadMeasuresView();
 }
 
@@ -1547,12 +1564,18 @@ function loadScheduleView() {
     renderNextWorkouts();
 }
 
-function toggleDay(dayIndex) {
+async function toggleDay(dayIndex) {
     schedule[dayIndex] = !schedule[dayIndex];
     if (!schedule[dayIndex]) delete schedule[dayIndex];
-    localStorage.setItem('academax_schedule', JSON.stringify(schedule));
+    
+    try {
+        await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ schedule: schedule })
+        });
+        showToast(schedule[dayIndex] ? 'Dia marcado!' : 'Dia desmarcado!', 'success');
+    } catch (e) { showToast('Erro ao salvar agenda', 'error'); }
     loadScheduleView();
-    showToast(schedule[dayIndex] ? 'Dia marcado!' : 'Dia desmarcado!', 'success');
 }
 
 function renderNextWorkouts() {
@@ -1847,7 +1870,7 @@ function hideGoalForm() {
     selectedGoalDir = null;
 }
 
-function saveGoal() {
+async function saveGoal() {
     const title = document.getElementById('goal-title').value.trim();
     const target = parseFloat(document.getElementById('goal-target').value);
 
@@ -1875,21 +1898,30 @@ function saveGoal() {
     }
 
     userGoals.push(goal);
-    localStorage.setItem('academax_goals', JSON.stringify(userGoals));
-    showToast('Meta criada com sucesso! 🎯', 'success');
+    try {
+        await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ goals: userGoals })
+        });
+        showToast('Meta criada e salva no banco! 🎯', 'success');
+    } catch (e) { showToast('Erro ao salvar meta', 'error'); }
     hideGoalForm();
     loadGoalsView();
 }
 
 function deleteGoal(id) {
-    showConfirm('Excluir meta', 'Deseja remover esta meta?', '🗑️', () => {
+    showConfirm('Excluir meta', 'Deseja remover esta meta?', '🗑️', async () => {
         userGoals = userGoals.filter(g => g.id !== id);
-        localStorage.setItem('academax_goals', JSON.stringify(userGoals));
+        try {
+            await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ goals: userGoals })
+            });
+        } catch (e) {}
         showToast('Meta removida.', 'info');
         loadGoalsView();
     });
 }
-
 
 applyTheme();
 

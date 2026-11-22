@@ -327,5 +327,31 @@ app.post('/api/verify-registration', async (req, res) => {
     }
 });
 
+// === SALVAR METAS, MEDIDAS E AGENDA ===
+app.put('/api/users/:id/user-data', authMiddleware, async (req, res) => {
+    const { id } = req.params;
+    if (req.user.id !== id && !req.user.isAdmin) return res.status(403).json({ error: 'Acesso negado' });
+    
+    const { goals, measures, schedule } = req.body;
+    const dataToUpdate = {};
+    if (goals !== undefined) dataToUpdate.goals = goals;
+    if (measures !== undefined) dataToUpdate.measures = measures;
+    if (schedule !== undefined) dataToUpdate.schedule = schedule;
+
+    try {
+        const updatedUser = await prisma.user.update({
+            where: { id },
+            data: dataToUpdate
+        });
+        res.json({ 
+            goals: updatedUser.goals, 
+            measures: updatedUser.measures, 
+            schedule: updatedUser.schedule 
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao salvar dados' });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Backend do AcadeMax rodando na porta ${PORT}`));
