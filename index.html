@@ -419,6 +419,10 @@
             <h3>Adicionados (<span id="added-count">0</span>)</h3>
             <div id="added-exercises-list" class="added-list"></div>
             <h3>Biblioteca</h3>
+            <div style="position:relative;margin-bottom:12px;">
+                <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:14px;"></i>
+                <input type="text" id="ex-search" placeholder="Buscar exercício..." oninput="renderLibrary()" style="padding-left:40px;">
+            </div>
             <div id="exercises-tabs" class="exercises-tabs"></div>
             <div id="exercises-library" class="exercises-library"></div>
             <div class="modal-actions">

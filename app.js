@@ -1544,6 +1544,7 @@ const days = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 function loadScheduleView() {
     const el = document.getElementById('view-schedule');
     if (!el) return;
+    const activeDays = Object.keys(schedule).filter(k => schedule[k]?.active);
     el.innerHTML = `
         <div class="page-header"><h1>Agenda de Treinos</h1></div>
         <div class="card">
@@ -1551,31 +1552,60 @@ function loadScheduleView() {
             <p style="color:var(--text-2);font-size:13px;margin-bottom:16px;">Toque nos dias para marcar/desmarcar.</p>
             <div class="schedule-grid">
                 ${days.map((d,i) => `
-                    <button class="schedule-day ${schedule[i] ? 'active' : ''}" onclick="toggleDay(${i})">
+                    <button class="schedule-day ${schedule[i]?.active ? 'active' : ''}" onclick="toggleDay(${i})">
                         <span>${d}</span>
                     </button>`).join('')}
             </div>
         </div>
-        <div class="card">
-            <h3 class="card-label">Próximos Treinos</h3>
-            <div id="next-workouts"></div>
-        </div>
+        ${activeDays.length > 0 ? `
+            <div class="card">
+                <h3 class="card-label">Treinos Agendados</h3>
+                ${activeDays.map(k => {
+                    const dayIdx = parseInt(k);
+                    const dayName = days[dayIdx];
+                    const selectedWorkout = schedule[k].workoutId || '';
+                    return `
+                        <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
+                            <strong style="width:40px;color:var(--accent);">${dayName}</strong>
+                            <select style="flex:1;margin:0;" onchange="updateScheduleWorkout(${dayIdx}, this.value)">
+                                <option value="">Treino Livre</option>
+                                ${DB.workouts.map(w => `<option value="${w.id}" ${selectedWorkout === w.id ? 'selected' : ''}>${w.name}</option>`).join('')}
+                            </select>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        ` : ''}
     `;
-    renderNextWorkouts();
 }
 
 async function toggleDay(dayIndex) {
-    schedule[dayIndex] = !schedule[dayIndex];
-    if (!schedule[dayIndex]) delete schedule[dayIndex];
-    
+    if (schedule[dayIndex]?.active) {
+        delete schedule[dayIndex];
+    } else {
+        schedule[dayIndex] = { active: true, workoutId: '' };
+    }
     try {
         await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ schedule: schedule })
         });
-        showToast(schedule[dayIndex] ? 'Dia marcado!' : 'Dia desmarcado!', 'success');
-    } catch (e) { showToast('Erro ao salvar agenda', 'error'); }
+        showToast('Agenda atualizada!', 'success');
+    } catch (e) { showToast('Erro ao salvar', 'error'); }
     loadScheduleView();
+}
+
+async function updateScheduleWorkout(dayIndex, workoutId) {
+    if (schedule[dayIndex]) {
+        schedule[dayIndex].workoutId = workoutId;
+        try {
+            await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ schedule: schedule })
+            });
+            showToast('Treino atribuído ao dia!', 'success');
+        } catch (e) { showToast('Erro ao salvar', 'error'); }
+    }
 }
 
 function renderNextWorkouts() {
@@ -1712,44 +1742,29 @@ function renderGoalCard(g) {
     const type = goalTypes.find(t => t.id === g.type);
     if (!type) return '';
     const remaining = Math.max(0, g.target - g.current);
-    const remainingText = g.type === 'frequency' ? `${remaining} treino${remaining !== 1 ? 's' : ''}` :
-                          g.type === 'volume' ? `${remaining.toFixed(0)} kg` :
-                          `${remaining.toFixed(1)} ${type.unit}`;
+    const remainingText = g.type === 'frequency' ? `${remaining} treino${remaining !== 1 ? 's' : ''}` : g.type === 'volume' ? `${remaining.toFixed(0)} kg` : `${remaining.toFixed(1)} ${type.unit}`;
+    
+    let extraInfo = '';
+    if (g.type === 'body' && bodyMeasures.length > 0) {
+        const firstW = bodyMeasures[0].weight;
+        const latestW = bodyMeasures[bodyMeasures.length - 1].weight;
+        const diff = (latestW - firstW).toFixed(1);
+        extraInfo = `<div style="font-size:12px;color:var(--text-3);margin-bottom:8px;">Início: ${firstW}kg | Atual: ${latestW}kg (${diff > 0 ? '+' : ''}${diff}kg)</div>`;
+    }
 
     return `
         <div class="goal-card ${g.completed ? 'completed' : ''}">
             <div class="goal-header">
-                <div class="goal-icon" style="background:${type.color}22;color:${type.color};">
-                    <i class="fa-solid ${type.icon}"></i>
-                </div>
-                <div class="goal-info">
-                    <h4>${g.title}</h4>
-                    <p>${type.label}${g.exercise ? ' · ' + g.exercise : ''}</p>
-                </div>
-                <button class="goal-delete" onclick="deleteGoal('${g.id}')">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+                <div class="goal-icon" style="background:${type.color}22;color:${type.color};"><i class="fa-solid ${type.icon}"></i></div>
+                <div class="goal-info"><h4>${g.title}</h4><p>${type.label}${g.exercise ? ' · ' + g.exercise : ''}</p></div>
+                <button class="goal-delete" onclick="deleteGoal('${g.id}')"><i class="fa-solid fa-xmark"></i></button>
             </div>
-
             <div class="goal-progress-section">
-                <div class="goal-progress-bar">
-                    <div class="goal-progress-fill" style="width:${g.progress}%;background:${type.color};"></div>
-                </div>
-                <div class="goal-stats">
-                    <span>Atual: <strong style="color:${type.color};">${g.current.toFixed(g.type === 'volume' ? 0 : 1)} ${type.unit}</strong></span>
-                    <span>Meta: <strong>${g.target} ${type.unit}</strong></span>
-                </div>
+                ${extraInfo}
+                <div class="goal-progress-bar"><div class="goal-progress-fill" style="width:${g.progress}%;background:${type.color};"></div></div>
+                <div class="goal-stats"><span>Progresso: <strong style="color:${type.color};">${g.current.toFixed(g.type === 'volume' ? 0 : 1)} ${type.unit}</strong></span><span>Meta: <strong>${g.target} ${type.unit}</strong></span></div>
             </div>
-
-            ${g.completed ? `
-                <div class="goal-completed-badge">
-                    <i class="fa-solid fa-trophy"></i> Meta concluída! Parabéns! 🎉
-                </div>
-            ` : `
-                <div class="goal-remaining">
-                    Faltam <strong style="color:${type.color};">${remainingText}</strong> para atingir sua meta
-                </div>
-            `}
+            ${g.completed ? `<div class="goal-completed-badge"><i class="fa-solid fa-trophy"></i> Meta concluída! 🎉</div>` : `<div class="goal-remaining">Faltam <strong style="color:${type.color};">${remainingText}</strong></div>`}
         </div>`;
 }
 
