@@ -1477,38 +1477,35 @@ async function saveAdminFicha(clientId) {
 // =============================================
 let bodyMeasures = JSON.parse(localStorage.getItem('academax_measures') || '[]');
 
-let measuresChart = null;
-function renderMeasuresChart() {
-    const ctx = document.getElementById('measuresChart');
-    if (!ctx) return;
-    if (measuresChart) measuresChart.destroy();
-    
-    // Se não tiver medidas, não desenha nada
-    if (bodyMeasures.length === 0) return;
-
-    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6366f1';
-    const isLight = document.body.classList.contains('light');
-    
-    measuresChart = new Chart(ctx.getContext('2d'), {
-        type: 'line',
-        data: {
-            labels: bodyMeasures.map(m => new Date(m.date).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'})),
-            datasets: [{
-                label: 'Peso (kg)', data: bodyMeasures.map(m => m.weight),
-                borderColor: accent, backgroundColor: accent+'18',
-                borderWidth: 2.5, fill: true, tension: 0.3,
-                pointBackgroundColor: accent, pointRadius: 4
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { grid: { color: 'rgba(128,128,128,0.08)' }, ticks: { color: isLight ? '#71717a' : '#52525b' } },
-                x: { grid: { display: false }, ticks: { color: isLight ? '#71717a' : '#52525b' } }
-            }
-        }
-    });
+function loadMeasuresView() {
+    const el = document.getElementById('view-measures');
+    if (!el) return;
+    el.innerHTML = `
+        <div class="page-header"><h1>Medidas Corporais</h1></div>
+        <div class="card">
+            <h3 class="card-label">Registrar Medidas</h3>
+            <div class="grid-2">
+                <div><label>Peso (kg)</label><input type="number" id="meas-weight" placeholder="75.5" step="0.1"></div>
+                <div><label>Data</label><input type="date" id="meas-date" value="${new Date().toISOString().split('T')[0]}"></div>
+            </div>
+            <div class="grid-2">
+                <div><label>Braço (cm)</label><input type="number" id="meas-arm" placeholder="35"></div>
+                <div><label>Cintura (cm)</label><input type="number" id="meas-waist" placeholder="80"></div>
+            </div>
+            <div class="grid-2">
+                <div><label>Peito (cm)</label><input type="number" id="meas-chest" placeholder="100"></div>
+                <div><label>Coxa (cm)</label><input type="number" id="meas-thigh" placeholder="55"></div>
+            </div>
+            <button class="btn-primary btn-full" onclick="saveMeasure()"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+        </div>
+        <div class="card">
+            <h3 class="card-label">Histórico de Peso</h3>
+            <div style="height: 200px; margin-top: 15px;"><canvas id="measuresChart"></canvas></div>
+        </div>
+        <div id="measures-list" class="workouts-list"></div>
+    `;
+    renderMeasuresList();
+    renderMeasuresChart();
 }
 
 async function saveMeasure() {
@@ -1571,6 +1568,35 @@ async function deleteMeasure(id) {
         showToast('Erro ao excluir medida.', 'error');
         console.error(e);
     }
+}
+
+let measuresChart = null;
+function renderMeasuresChart() {
+    const ctx = document.getElementById('measuresChart');
+    if (!ctx) return;
+    if (measuresChart) measuresChart.destroy();
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6366f1';
+    const isLight = document.body.classList.contains('light');
+    measuresChart = new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: bodyMeasures.map(m => new Date(m.date).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'})),
+            datasets: [{
+                label: 'Peso (kg)', data: bodyMeasures.map(m => m.weight),
+                borderColor: accent, backgroundColor: accent+'18',
+                borderWidth: 2.5, fill: true, tension: 0.3,
+                pointBackgroundColor: accent, pointRadius: 4
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { grid: { color: 'rgba(128,128,128,0.08)' }, ticks: { color: isLight ? '#71717a' : '#52525b' } },
+                x: { grid: { display: false }, ticks: { color: isLight ? '#71717a' : '#52525b' } }
+            }
+        }
+    });
 }
 
 // =============================================
