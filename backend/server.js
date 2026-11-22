@@ -371,7 +371,7 @@ app.post('/api/verify-registration', async (req, res) => {
 // === SALVAR METAS, MEDIDAS E AGENDA ===
 app.put('/api/users/:id/user-data', authMiddleware, async (req, res) => {
     const { id } = req.params;
-    if (req.user.id !== id && !req.user.isAdmin) return res.status(403).json({ error: 'Acesso negado' });
+    if (req.user.id !== id && !req.user.isAdmin) return res.status(403).json({ error: "Acesso negado" });
     
     const { goals, measures, schedule } = req.body;
     const dataToUpdate = {};
@@ -390,7 +390,7 @@ app.put('/api/users/:id/user-data', authMiddleware, async (req, res) => {
             schedule: updatedUser.schedule 
         });
     } catch (error) {
-        res.status(500).json({ error: 'Erro ao salvar dados' });
+        res.status(500).json({ error: "Erro ao salvar dados do usuário" });
     }
 });
 
