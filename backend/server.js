@@ -221,6 +221,38 @@ app.post('/api/google-login', async (req, res) => {
     }
 });
 
+app.post('/api/google-redirect', express.urlencoded({ extended: true }), async (req, res) => {
+    const { credential } = req.body;
+
+    if (!credential) {
+        return res.redirect('https://academaxx.com.br/login?error=TokenNaoRecebido');
+    }
+
+    try {
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            audience: '681505626161-vn9aiah8dd700qdsb4bolt9qanji49u1.apps.googleusercontent.com',
+        });
+        const payload = ticket.getPayload();
+        const { name, email, picture } = payload;
+
+        const user = await prisma.user.upsert({
+            where: { email },
+            update: { name, picture },
+            create: { name, email, picture, password: 'google_oauth' }
+        });
+
+        // Gera o JWT
+        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+        
+        // Redireciona de volta para o site, passando o token na URL!
+        res.redirect(`https://academaxx.com.br/login?google_token=${token}`);
+    } catch (e) {
+        console.error('Erro no Google Redirect:', e);
+        res.redirect('https://academaxx.com.br/login?error=FalhaNoLoginGoogle');
+    }
+});
+
 // === ESQUECI SENHA ===
 app.post('/api/forgot-password', async (req, res) => {
     const { email } = req.body;
@@ -305,6 +337,17 @@ app.post('/api/users/:id/avatar', authMiddleware, async (req, res) => {
     const pictureUrl = `/uploads/${filename}`;
     await prisma.user.update({ where: { id }, data: { picture: pictureUrl } });
     res.json({ picture: pictureUrl });
+});
+
+app.get('/api/users/me', authMiddleware, async (req, res) => {
+    // O authMiddleware já validou o token e colocou o usuário em req.user
+    const user = req.user;
+    res.json({
+        id: user.id, name: user.name, email: user.email, picture: user.picture,
+        phone: user.phone, birthdate: user.birthdate, isAdmin: user.isAdmin,
+        mfaEnabled: user.mfaEnabled, ficha: user.ficha, goals: user.goals,
+        measures: user.measures, schedule: user.schedule
+    });
 });
 
 // === ATUALIZAR PERFIL ===

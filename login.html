@@ -469,24 +469,23 @@
         setLoading(btn, false, orig);
     }
 
-       // Substitua a sua função initGoogle() por esta:
-    function initGoogle() {
-        if (!window.google) return;
 
-        google.accounts.id.initialize({
-            client_id: '681505626161-vn9aiah8dd700qdsb4bolt9qanji49u1.apps.googleusercontent.com',
-            callback: handleCredentialResponse,
-            ux_mode: 'redirect', // 👈 MUDANÇA AQUI: Modo de redirecionamento
-            login_uri: 'https://academaxx.com.br/login' // 👈 Para onde o Google volta
-        });
+   function initGoogle() {
+    if (!window.google) return;
 
-        const cfg = { theme: 'outline', size: 'large', shape: 'rectangular', width: 380, logo_alignment: 'left' };
-        const container1 = document.getElementById('google-btn-container');
-        if (container1) google.accounts.id.renderButton(container1, { ...cfg, text: 'continue_with', locale: 'pt-BR' });
-        
-        const container2 = document.getElementById('google-btn-container-2');
-        if (container2) google.accounts.id.renderButton(container2, { ...cfg, text: 'continue_with', locale: 'pt-BR' });
-    }
+    google.accounts.id.initialize({
+        client_id: '681505626161-vn9aiah8dd700qdsb4bolt9qanji49u1.apps.googleusercontent.com',
+        ux_mode: 'redirect', 
+        login_uri: 'https://academaxx.com.br/api/google-redirect' // 👈 MUDOU AQUI
+    });
+
+    const cfg = { theme: 'outline', size: 'large', shape: 'rectangular', width: 380, logo_alignment: 'left' };
+    const container1 = document.getElementById('google-btn-container');
+    if (container1) google.accounts.id.renderButton(container1, { ...cfg, text: 'continue_with', locale: 'pt-BR' });
+    
+    const container2 = document.getElementById('google-btn-container-2');
+    if (container2) google.accounts.id.renderButton(container2, { ...cfg, text: 'continue_with', locale: 'pt-BR' });
+}
 
     // Substitua a sua handleCredentialResponse() por esta:
     function handleCredentialResponse(response) {
@@ -507,13 +506,36 @@
     }
 
     // NOVO: Verifica se o usuário voltou do Google com o token na URL
+      // Verifica se voltou do Google com o token na URL
     window.addEventListener('load', () => {
         const urlParams = new URLSearchParams(window.location.search);
-        const credential = urlParams.get('credential');
-        if (credential) {
-            handleCredentialResponse({ credential });
-            // Limpa a URL para não ficar com o token exposto
-            window.history.replaceState({}, document.title, window.location.pathname);
+        const googleToken = urlParams.get('google_token');
+        const errorParam = urlParams.get('error');
+
+        if (errorParam) {
+            showToast('Erro ao logar com o Google. Tente novamente.', 'error');
+            window.history.replaceState({}, document.title, window.location.pathname); // Limpa a URL
+            return;
+        }
+
+        if (googleToken) {
+            // Como o backend já validou o Google, a gente só precisa buscar os dados do usuário
+            // Faz um fetch para pegar os dados atualizados do banco usando o token JWT gerado
+            fetch(`${API}/users/me`, {
+                headers: { 'Authorization': `Bearer ${googleToken}` }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                
+                localStorage.setItem('academax_token', googleToken);
+                localStorage.setItem('academax_user', JSON.stringify(data));
+                window.location.href = '/';
+            })
+            .catch(() => {
+                showToast('Erro ao carregar perfil. Tente novamente.', 'error');
+                window.history.replaceState({}, document.title, window.location.pathname);
+            });
         }
     });
 
