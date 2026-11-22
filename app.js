@@ -1544,67 +1544,60 @@ const days = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 function loadScheduleView() {
     const el = document.getElementById('view-schedule');
     if (!el) return;
-    const activeDays = Object.keys(schedule).filter(k => schedule[k]?.active);
+    
+    const workoutOptions = DB.workouts.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+    
     el.innerHTML = `
         <div class="page-header"><h1>Agenda de Treinos</h1></div>
         <div class="card">
-            <h3 class="card-label">Seus dias de treino</h3>
-            <p style="color:var(--text-2);font-size:13px;margin-bottom:16px;">Toque nos dias para marcar/desmarcar.</p>
-            <div class="schedule-grid">
-                ${days.map((d,i) => `
-                    <button class="schedule-day ${schedule[i]?.active ? 'active' : ''}" onclick="toggleDay(${i})">
-                        <span>${d}</span>
-                    </button>`).join('')}
+            <h3 class="card-label">Monte sua semana</h3>
+            <p style="color:var(--text-2);font-size:13px;margin-bottom:16px;">Selecione qual treino você vai fazer em cada dia.</p>
+            <div class="schedule-list">
+                ${days.map((d, i) => `
+                    <div class="schedule-row">
+                        <span class="schedule-day-label">${d}</span>
+                        <select class="schedule-select" data-day="${i}" onchange="setScheduleWorkout(${i}, this.value)">
+                            <option value="">Descanso</option>
+                            ${workoutOptions}
+                        </select>
+                    </div>
+                `).join('')}
             </div>
         </div>
-        ${activeDays.length > 0 ? `
-            <div class="card">
-                <h3 class="card-label">Treinos Agendados</h3>
-                ${activeDays.map(k => {
-                    const dayIdx = parseInt(k);
-                    const dayName = days[dayIdx];
-                    const selectedWorkout = schedule[k].workoutId || '';
-                    return `
-                        <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
-                            <strong style="width:40px;color:var(--accent);">${dayName}</strong>
-                            <select style="flex:1;margin:0;" onchange="updateScheduleWorkout(${dayIdx}, this.value)">
-                                <option value="">Treino Livre</option>
-                                ${DB.workouts.map(w => `<option value="${w.id}" ${selectedWorkout === w.id ? 'selected' : ''}>${w.name}</option>`).join('')}
-                            </select>
-                        </div>
-                    `;
-                }).join('')}
-            </div>
-        ` : ''}
+        <div class="card">
+            <h3 class="card-label">Próximos Treinos</h3>
+            <div id="next-workouts"></div>
+        </div>
     `;
+    
+    // Preenche os valores já salvos
+    Object.keys(schedule).forEach(k => {
+        const select = document.querySelector(`.schedule-select[data-day="${k}"]`);
+        if (select && schedule[k].workoutId) {
+            select.value = schedule[k].workoutId;
+            select.closest('.schedule-row').classList.add('active');
+        }
+    });
+    
+    renderNextWorkouts();
 }
 
-async function toggleDay(dayIndex) {
-    if (schedule[dayIndex]?.active) {
+async function setScheduleWorkout(dayIndex, workoutId) {
+    if (!workoutId) {
         delete schedule[dayIndex];
     } else {
-        schedule[dayIndex] = { active: true, workoutId: '' };
+        schedule[dayIndex] = { workoutId: workoutId };
     }
+    
     try {
         await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ schedule: schedule })
         });
-        showToast('Agenda atualizada!', 'success');
-    } catch (e) { showToast('Erro ao salvar', 'error'); }
-    loadScheduleView();
-}
-
-async function updateScheduleWorkout(dayIndex, workoutId) {
-    if (schedule[dayIndex]) {
-        schedule[dayIndex].workoutId = workoutId;
-        try {
-            await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ schedule: schedule })
-            });
-            showToast('Treino atribuído ao dia!', 'success');
-        } catch (e) { showToast('Erro ao salvar', 'error'); }
+        showToast('Agenda salva!', 'success');
+        loadScheduleView(); // Atualiza a tela e a lista de próximos
+    } catch (e) { 
+        showToast('Erro ao salvar', 'error'); 
     }
 }
 
@@ -1613,27 +1606,43 @@ function renderNextWorkouts() {
     if (!el) return;
     const today = new Date().getDay();
     const upcoming = [];
+    
     for (let i = 0; i < 7; i++) {
-        const day = (today + i) % 7;
-        if (schedule[day]) {
+        const dayIdx = (today + i) % 7;
+        if (schedule[dayIdx] && schedule[dayIdx].workoutId) {
             const date = new Date();
             date.setDate(date.getDate() + i);
-            upcoming.push({ day: days[day], date, isToday: i === 0 });
+            const workout = DB.workouts.find(w => w.id === schedule[dayIdx].workoutId);
+            upcoming.push({ day: days[dayIdx], date, isToday: i === 0, workoutName: workout ? workout.name : 'Treino' });
         }
     }
+    
     if (upcoming.length === 0) {
         el.innerHTML = '<p style="color:var(--text-3);font-size:14px;text-align:center;padding:16px;">Nenhum treino agendado.</p>';
         return;
     }
+    
     el.innerHTML = upcoming.map(u => `
         <div class="schedule-item ${u.isToday ? 'today' : ''}">
             <div class="schedule-date">${u.day}<br><strong>${u.date.getDate()}/${u.date.getMonth()+1}</strong></div>
-            <div>${u.isToday ? '🔥 Hoje!' : 'Treino'}</div>
+            <div>${u.isToday ? '🔥 Hoje: ' : ''}<strong style="color:var(--accent);">${u.workoutName}</strong></div>
         </div>
     `).join('');
 }
 
-
+async function toggleDay(dayIndex) {
+    schedule[dayIndex] = !schedule[dayIndex];
+    if (!schedule[dayIndex]) delete schedule[dayIndex];
+    
+    try {
+        await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ schedule: schedule })
+        });
+        showToast(schedule[dayIndex] ? 'Dia marcado!' : 'Dia desmarcado!', 'success');
+    } catch (e) { showToast('Erro ao salvar agenda', 'error'); }
+    loadScheduleView();
+}
 
 // =============================================
 // === METAS PERSONAIS ===
