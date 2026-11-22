@@ -1503,7 +1503,7 @@ function loadMeasuresView() {
         <div class="card">
             <h3 class="card-label">Evolução Corporal (Radar)</h3>
             <p style="font-size:12px;color:var(--text-3);margin-bottom:12px;">Comparação com a última medida registrada.</p>
-            <div style="height: 280px; margin-top: 10px; display: flex; justify-content: center;">
+          <div style="position: relative; height: 300px; width: 100%; margin-top: 10px;">
                 <canvas id="bodyRadarChart"></canvas>
             </div>
         </div>
@@ -1588,14 +1588,25 @@ function renderBodyRadarChart() {
     if (!ctx) return;
     if (bodyRadarChart) bodyRadarChart.destroy();
 
-    // Pega a última medida e a penúltima (se existir) para comparar
-    const latest = bodyMeasures[bodyMeasures.length - 1] || {};
+    // Se não tiver nenhuma medida salva, mostra um aviso
+    if (bodyMeasures.length === 0) {
+        const parent = ctx.parentElement;
+        parent.innerHTML = `
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-3);">
+                <i class="fa-solid fa-chart-pie" style="font-size:40px; margin-bottom:12px; opacity:0.5;"></i>
+                <p style="font-size:14px;">Registre sua primeira medida para ver o gráfico.</p>
+            </div>
+        `;
+        return;
+    }
+
+    const latest = bodyMeasures[bodyMeasures.length - 1];
     const prev = bodyMeasures.length > 1 ? bodyMeasures[bodyMeasures.length - 2] : null;
 
     const dataAtual = [latest.arm || 0, latest.chest || 0, latest.waist || 0, latest.thigh || 0];
     const dataAnterior = prev ? [prev.arm || 0, prev.chest || 0, prev.waist || 0, prev.thigh || 0] : null;
 
-    const labels = ['Braço (cm)', 'Peito (cm)', 'Cintura (cm)', 'Coxa (cm)'];
+    const labels = ['Braço', 'Peito', 'Cintura', 'Coxa'];
     
     const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6366f1';
     const isLight = document.body.classList.contains('light');
@@ -1603,9 +1614,9 @@ function renderBodyRadarChart() {
     const gridColor = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)';
 
     const datasets = [{
-        label: 'Medida Atual',
+        label: 'Atual',
         data: dataAtual,
-        backgroundColor: `${accent}40`, // Cor de fundo semi-transparente
+        backgroundColor: `${accent}40`,
         borderColor: accent,
         pointBackgroundColor: accent,
         borderWidth: 2,
@@ -1614,13 +1625,13 @@ function renderBodyRadarChart() {
 
     if (dataAnterior) {
         datasets.push({
-            label: 'Medida Anterior',
+            label: 'Anterior',
             data: dataAnterior,
-            backgroundColor: 'rgba(239, 68, 68, 0.1)', // Vermelho transparente
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
             borderColor: '#ef4444',
             pointBackgroundColor: '#ef4444',
             borderWidth: 2,
-            borderDash: [5, 5], // Linha tracejada
+            borderDash: [5, 5],
             pointRadius: 3
         });
     }
@@ -1644,8 +1655,8 @@ function renderBodyRadarChart() {
                 r: {
                     angleLines: { color: gridColor },
                     grid: { color: gridColor },
-                    pointLabels: { color: textColor, font: { family: 'DM Sans', size: 11, weight: 'bold' } },
-                    ticks: { display: false, min: 0 } // Oculta os números do centro para ficar mais limpo
+                    pointLabels: { color: textColor, font: { family: 'DM Sans', size: 12, weight: 'bold' } },
+                    ticks: { display: false, min: 0 }
                 }
             }
         }
