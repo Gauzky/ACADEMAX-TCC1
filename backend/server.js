@@ -68,9 +68,15 @@ app.post('/api/login', async (req, res) => {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
     
+    // NOVO: Impede login com senha falsa do Google
+    if (user.password === 'google_oauth') {
+        return res.status(401).json({ error: "Esta conta usa login com o Google." });
+    }
+
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) return res.status(401).json({ error: "Senha incorreta" });
     
+
     if (user.mfaEnabled) {
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         mfaCodes.set(email, { code, expiry: Date.now() + 300000 });
@@ -283,7 +289,12 @@ app.get('/api/workouts/:userId', authMiddleware, async (req, res) => {
 });
 
 app.delete('/api/workouts/:id', authMiddleware, async (req, res) => {
-    try { await prisma.workout.delete({ where: { id: req.params.id } }); res.json({ message: 'Treino excluído' }); }
+    try { 
+        // Apaga o histórico vinculado antes de apagar o treino
+        await prisma.workoutSession.deleteMany({ where: { workoutId: req.params.id } });
+        await prisma.workout.delete({ where: { id: req.params.id } }); 
+        res.json({ message: 'Treino excluído' }); 
+    }
     catch { res.status(500).json({ error: 'Erro ao excluir' }); }
 });
 
@@ -373,11 +384,12 @@ app.put('/api/users/:id/user-data', authMiddleware, async (req, res) => {
     const { id } = req.params;
     if (req.user.id !== id && !req.user.isAdmin) return res.status(403).json({ error: "Acesso negado" });
     
-    const { goals, measures, schedule } = req.body;
+    const { goals, measures, schedule, ficha } = req.body; // Adicionado ficha
     const dataToUpdate = {};
     if (goals !== undefined) dataToUpdate.goals = goals;
     if (measures !== undefined) dataToUpdate.measures = measures;
     if (schedule !== undefined) dataToUpdate.schedule = schedule;
+    if (ficha !== undefined) dataToUpdate.ficha = ficha; // Adicionado ficha
 
     try {
         const updatedUser = await prisma.user.update({
@@ -387,7 +399,8 @@ app.put('/api/users/:id/user-data', authMiddleware, async (req, res) => {
         res.json({ 
             goals: updatedUser.goals, 
             measures: updatedUser.measures, 
-            schedule: updatedUser.schedule 
+            schedule: updatedUser.schedule,
+            ficha: updatedUser.ficha // Adicionado ficha
         });
     } catch (error) {
         res.status(500).json({ error: "Erro ao salvar dados do usuário" });

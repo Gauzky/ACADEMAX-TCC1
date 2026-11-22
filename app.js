@@ -555,26 +555,33 @@ async function saveNewWorkout() {
     const btn = document.getElementById('save-workout-btn');
     setButtonLoading(btn, true);
     const userId = targetUserIdForWorkout || loggedUser.id;
+    
     try {
-        await authFetch(`${API}/workouts`, {
+        const res = await authFetch(`${API}/workouts`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, desc, exercises: tempExercisesToAdd, userId })
         });
-    } catch (e) {}
-    if (!targetUserIdForWorkout) {
-        if (editingWorkoutId) {
-            const w = DB.workouts.find(x => x.id === editingWorkoutId);
-            if (w) { w.name = name; w.desc = desc; w.exercises = tempExercisesToAdd; }
-            showToast('Treino atualizado!', 'success');
+        
+        const savedWorkout = await res.json(); 
+        
+        if (!targetUserIdForWorkout) {
+            if (editingWorkoutId) {
+                const w = DB.workouts.find(x => x.id === editingWorkoutId);
+                if (w) { w.name = name; w.desc = desc; w.exercises = tempExercisesToAdd; }
+                showToast('Treino atualizado!', 'success');
+            } else {
+                DB.workouts.push(savedWorkout); // <--- USA O ID REAL DO BANCO AQUI
+                showToast('Treino criado!', 'success');
+            }
+            renderWorkouts();
         } else {
-            DB.workouts.push({ id: Date.now().toString(), name, desc, exercises: tempExercisesToAdd });
-            showToast('Treino criado!', 'success');
+            viewClient(targetUserIdForWorkout);
+            showToast('Treino recomendado ao cliente!', 'success');
         }
-        renderWorkouts();
-    } else {
-        viewClient(targetUserIdForWorkout);
-        showToast('Treino recomendado ao cliente!', 'success');
+    } catch (e) {
+        showToast('Erro ao criar treino.', 'error');
     }
+
     editingWorkoutId = null; targetUserIdForWorkout = null;
     setButtonLoading(btn, false);
     closeCreateModal();
@@ -1172,14 +1179,14 @@ async function saveFicha() {
         updatedAt:    new Date().toISOString()
     };
     try {
-        await authFetch(`${API}/users/${loggedUser.id}/ficha`, {
+        await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(fichaData)
+            body: JSON.stringify({ ficha: fichaData })
         });
-    } catch (e) {}
-    const updated = { ...loggedUser, ficha: fichaData };
-    localStorage.setItem('academax_user', JSON.stringify(updated));
-    Object.assign(loggedUser, updated);
+    } catch (e) { console.log(e); }
+    
+    loggedUser.ficha = fichaData;
+    localStorage.setItem('academax_user', JSON.stringify(loggedUser));
     showToast('Ficha salva!', 'success');
     setButtonLoading(btn, false);
     loadProfileData();
@@ -1365,9 +1372,9 @@ async function saveAdminFicha(clientId) {
         updatedAt:    new Date().toISOString()
     };
     try {
-        await authFetch(`${API}/users/${clientId}/ficha`, {
+        await authFetch(`${API}/users/${clientId}/user-data`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(fichaData)
+            body: JSON.stringify({ ficha: fichaData })
         });
         const i = globalClients.findIndex(u => u.id === clientId);
         if (i >= 0) globalClients[i].ficha = fichaData;
@@ -1427,9 +1434,13 @@ async function saveMeasure() {
         thigh: parseInt(document.getElementById('meas-thigh').value) || 0,
     };
     if (!m.weight) { showToast('Digite o peso!', 'warning'); return; }
+    
     bodyMeasures.push(m);
     bodyMeasures.sort((a, b) => new Date(a.date) - new Date(b.date));
     
+    loggedUser.measures = bodyMeasures; // Atualiza cache local
+    localStorage.setItem('academax_user', JSON.stringify(loggedUser));
+
     try {
         await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -1589,13 +1600,16 @@ async function setScheduleWorkout(dayIndex, workoutId) {
         schedule[dayIndex] = { workoutId: workoutId };
     }
     
+    loggedUser.schedule = schedule; // Atualiza cache local
+    localStorage.setItem('academax_user', JSON.stringify(loggedUser));
+
     try {
         await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ schedule: schedule })
         });
         showToast('Agenda salva!', 'success');
-        loadScheduleView(); // Atualiza a tela e a lista de próximos
+        loadScheduleView();
     } catch (e) { 
         showToast('Erro ao salvar', 'error'); 
     }
@@ -1908,6 +1922,10 @@ async function saveGoal() {
     }
 
     userGoals.push(goal);
+    
+    loggedUser.goals = userGoals; // Atualiza cache local
+    localStorage.setItem('academax_user', JSON.stringify(loggedUser));
+
     try {
         await authFetch(`${API}/users/${loggedUser.id}/user-data`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
