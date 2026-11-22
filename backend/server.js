@@ -186,11 +186,10 @@ app.post('/api/toggle-mfa', authMiddleware, async (req, res) => {
 
 // === GOOGLE LOGIN ===
 app.post('/api/google-login', async (req, res) => {
-    const { credential } = req.body; // Agora esperamos o token JWT do Google
+    const { credential } = req.body;
     if (!credential) return res.status(400).json({ error: 'Token do Google não enviado' });
 
     try {
-        // Valida o token criptograficamente com os servidores do Google
         const ticket = await googleClient.verifyIdToken({
             idToken: credential,
             audience: '681505626161-vn9aiah8dd700qdsb4bolt9qanji49u1.apps.googleusercontent.com',
@@ -205,11 +204,13 @@ app.post('/api/google-login', async (req, res) => {
             update: { name, picture },
             create: { name, email, picture, password: 'google_oauth' }
         });
-          // GERANDO O TOKEN (Adicione isso antes do res.json final)
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' }); // Expira em 7 dias
 
-    res.json({ 
-            token: token,id: user.id, name: user.name, email: user.email, picture: user.picture, 
+        // 🚨 ESSA LINHA É OBRIGATÓRIA AQUI TAMBÉM:
+        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+        
+        res.json({ 
+            token: token, // <-- Envia o token para o frontend
+            id: user.id, name: user.name, email: user.email, picture: user.picture, 
             phone: user.phone, birthdate: user.birthdate, isAdmin: user.isAdmin, 
             mfaEnabled: user.mfaEnabled, ficha: user.ficha, goals: user.goals, 
             measures: user.measures, schedule: user.schedule
