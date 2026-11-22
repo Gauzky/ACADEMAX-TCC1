@@ -307,6 +307,18 @@ app.get('/api/users', authMiddleware, adminMiddleware, async (req, res) => {
     });
     res.json(users);
 });
+
+app.get('/api/users/me', authMiddleware, async (req, res) => {
+    // O authMiddleware já validou o token e colocou o usuário em req.user
+    const user = req.user;
+    res.json({
+        id: user.id, name: user.name, email: user.email, picture: user.picture,
+        phone: user.phone, birthdate: user.birthdate, isAdmin: user.isAdmin,
+        mfaEnabled: user.mfaEnabled, ficha: user.ficha, goals: user.goals,
+        measures: user.measures, schedule: user.schedule
+    });
+});
+
 // === BUSCAR PERFIL DO USUÁRIO LOGADO (NOVO) ===
 app.get('/api/users/:id', authMiddleware, async (req, res) => {
     if (req.user.id !== req.params.id && !req.user.isAdmin) {
@@ -337,17 +349,6 @@ app.post('/api/users/:id/avatar', authMiddleware, async (req, res) => {
     const pictureUrl = `/uploads/${filename}`;
     await prisma.user.update({ where: { id }, data: { picture: pictureUrl } });
     res.json({ picture: pictureUrl });
-});
-
-app.get('/api/users/me', authMiddleware, async (req, res) => {
-    // O authMiddleware já validou o token e colocou o usuário em req.user
-    const user = req.user;
-    res.json({
-        id: user.id, name: user.name, email: user.email, picture: user.picture,
-        phone: user.phone, birthdate: user.birthdate, isAdmin: user.isAdmin,
-        mfaEnabled: user.mfaEnabled, ficha: user.ficha, goals: user.goals,
-        measures: user.measures, schedule: user.schedule
-    });
 });
 
 // === ATUALIZAR PERFIL ===
