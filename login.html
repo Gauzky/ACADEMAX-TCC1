@@ -400,14 +400,10 @@
     </div>
 </div>
 
-<div id="g_id_onload"
-    data-client_id="681505626161-vn9aiah8dd700qdsb4bolt9qanji49u1.apps.googleusercontent.com"
-    data-callback="handleCredentialResponse"
-    data-auto_prompt="false"
-    data-locale="pt_BR"
-    style="display:none;"></div>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://accounts.google.com/gsi/client" async defer onload="initGoogle()">
 
+
+</script>
 <script>
     const API = 'https://academaxx.com.br/api';
 
@@ -474,17 +470,24 @@
         setLoading(btn, false, orig);
     }
 
-    window.onload = function() {
-        if (window.google) {
-            google.accounts.id.initialize({
-                client_id: '681505626161-vn9aiah8dd700qdsb4bolt9qanji49u1.apps.googleusercontent.com',
-                callback: handleCredentialResponse
-            });
-            const cfg = { theme:'outline', size:'large', shape:'rectangular', width:380, logo_alignment:'left' };
-            google.accounts.id.renderButton(document.getElementById('google-btn-container'),  { ...cfg, text:'continue_with', locale:'pt-BR'  });
-            google.accounts.id.renderButton(document.getElementById('google-btn-container-2'),{ ...cfg, text:'continue_with', locale:'pt-BR' });
-        }
-    };
+        function initGoogle() {
+        if (!window.google) return;
+
+        google.accounts.id.initialize({
+            client_id: '681505626161-vn9aiah8dd700qdsb4bolt9qanji49u1.apps.googleusercontent.com',
+            callback: handleCredentialResponse
+        });
+
+        const cfg = { theme:'outline', size:'large', shape:'rectangular', width:380, logo_alignment:'left' };
+        
+        const container1 = document.getElementById('google-btn-container');
+        if (container1) google.accounts.id.renderButton(container1, { ...cfg, text:'continue_with', locale:'pt-BR' });
+        
+        const container2 = document.getElementById('google-btn-container-2');
+        if (container2) google.accounts.id.renderButton(container2, { ...cfg, text:'continue_with', locale:'pt-BR' });
+    }
+
+    
     function handleCredentialResponse(response) {
     fetch(`${API}/google-login`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
