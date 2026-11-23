@@ -1050,3 +1050,25 @@ select { cursor: pointer; }
     margin-bottom: 12px; box-sizing: border-box;
 }
 #admin-msg-input:focus { outline: none; border-color: var(--accent); }
+/* =========================================================
+   MENU INFERIOR COM SCROLL HORIZONTAL (MOBILE)
+   ========================================================= */
+@media (max-width: 767px) {
+    .navbar {
+        justify-content: flex-start; /* Alinha os itens à esquerda */
+        overflow-x: auto;            /* Habilita o scroll horizontal */
+        -webkit-overflow-scrolling: touch; /* Deixa o scroll suave no iOS */
+        scrollbar-width: none;       /* Esconde a barra de rolagem no Firefox */
+        padding: 8px 12px;           /* Dá um respiro nas bordas */
+        gap: 6px;                    /* Espaço entre os botões */
+    }
+
+    /* Esconde a barra de rolagem no Chrome, Safari e Edge */
+    .navbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .nav-btn {
+        flex-shrink: 0; /* Impede que os botões fiquem espremidos */
+    }
+}
