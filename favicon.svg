@@ -1,6 +1,3 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <rect width="100" height="100" rx="22" fill="#09090b"/>
-  <path d="M18 50A32 32 0 0 1 82 50" stroke="#f4f4f5" stroke-width="8" stroke-linecap="round" fill="none"/>
-  <path d="M82 50A32 32 0 0 1 18 50" stroke="#6366f1" stroke-width="8" stroke-linecap="round" fill="none"/>
-  <rect x="44" y="14" width="12" height="72" rx="6" fill="#6366f1"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><metadata><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description><dc:creator>RealFaviconGenerator</dc:creator><dc:source>https://realfavicongenerator.net</dc:source></rdf:Description></rdf:RDF></metadata><rect width="100" height="100" rx="22" fill="#09090b"></rect><path d="M18 50A32 32 0 0 1 82 50" stroke="#f4f4f5" stroke-width="8" stroke-linecap="round" fill="none"></path><path d="M82 50A32 32 0 0 1 18 50" stroke="#6366f1" stroke-width="8" stroke-linecap="round" fill="none"></path><rect x="44" y="14" width="12" height="72" rx="6" fill="#6366f1"></rect><style>@media (prefers-color-scheme: light) { :root { filter: none; } }
+@media (prefers-color-scheme: dark) { :root { filter: none; } }
+</style></svg>
