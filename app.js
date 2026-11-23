@@ -1049,9 +1049,12 @@ function loadProfileData() {
                 </button>
             </div>
             <div id="ficha-preview">${fichaHTML}</div>
-            <div id="ficha-form-container" class="hidden" style="margin-top:16px;">
-                ${renderHealthForm(u.ficha)}
-            </div>
+          <div id="ficha-form-container" class="hidden" style="margin-top:16px;">
+    ${renderHealthForm(u.ficha)}
+    <button class="btn-primary btn-full" id="save-ficha-btn" onclick="saveFicha()" style="margin-top:20px;">
+        <i class="fa-solid fa-floppy-disk"></i> Salvar Ficha
+    </button>
+</div>
         </div>
 
         <div class="card">
@@ -1236,9 +1239,7 @@ function renderHealthForm(d) {
                 <button class="nivel-card ${selectedNivel==='avancado'?'selected':''}" onclick="selectNivel('avancado')"><span class="nivel-dot"></span> Avançado</button>
             </div>
         </div>
-        <button class="btn-primary btn-full" id="save-ficha-btn" onclick="saveFicha()" style="margin-top:20px;">
-            <i class="fa-solid fa-floppy-disk"></i> Salvar Ficha
-        </button>`;
+           </div>`;  // fecha o último ficha-section sem botão
 }
 function toggleHealthCard(el) {
     const cb = el.querySelector('input[type="checkbox"]');
