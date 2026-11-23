@@ -10,7 +10,7 @@
         :root {
             --bg: #09090b;
             --bg-card: #111114;
-            --accent: #6366f1; /* ROXO/ÍNDIGO PADRÃO */
+            --accent: #6366f1; 
             --text-1: #f4f4f5;
             --text-2: #a1a1aa;
         }
@@ -22,13 +22,11 @@
             overflow-x: hidden;
         }
         
-        /* Header */
         header {
             display: flex; justify-content: space-between; align-items: center;
             padding: 20px 40px; position: absolute; width: 100%; top: 0; z-index: 10;
         }
         
-        /* 👇 ESTILO DO SEU LOGO OFICIAL 👇 */
         .logo { display: flex; align-items: center; gap: 9px; }
         .logo svg { width: 28px; height: 28px; }
         .logo-text { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
@@ -42,7 +40,6 @@
         }
         .btn-entrar:hover { background: rgba(255,255,255,0.1); }
 
-        /* Hero Section */
         .hero {
             height: 100vh; display: flex; align-items: center; justify-content: center;
             text-align: center; padding: 20px;
@@ -57,7 +54,6 @@
         h1 span { color: var(--accent); }
         p.subtitle { font-size: 20px; color: var(--text-2); margin-bottom: 40px; line-height: 1.5; }
         
-        /* Botões CTA */
         .cta-group { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
         .btn-primary {
             background: var(--accent); color: #fff; padding: 16px 32px;
@@ -75,6 +71,24 @@
         }
         .btn-secondary:hover { background: rgba(255,255,255,0.1); }
 
+        /* ========================================== */
+        /* ESTILO DO TOAST (Notificação Customizada)  */
+        /* ========================================== */
+        #academax-toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: #18181b; border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px; padding: 16px 24px;
+            display: flex; flex-direction: column; gap: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8); z-index: 999;
+            max-width: 90vw; width: max-content;
+            opacity: 0; pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+            font-size: 14px; color: var(--text-1); line-height: 1.5;
+        }
+        #academax-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+        #academax-toast p { margin: 0; }
+        #academax-toast i { color: var(--accent); margin-right: 6px; }
+
         @media (max-width: 768px) {
             h1 { font-size: 40px; }
             p.subtitle { font-size: 16px; }
@@ -86,7 +100,6 @@
 <body>
 
     <header>
-        <!-- 👇 SEU LOGO OFICIAL AQUI 👇 -->
         <div class="logo">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M20.57 12C20.57 16.78 16.72 20.64 11.73 20.64C6.74 20.64 2.88 16.78 2.88 12" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
@@ -105,12 +118,10 @@
             <p class="subtitle">Acompanhe sua evolução, gerencie seus treinos e alcance seus objetivos com a plataforma definitiva para atletas e personal trainers.</p>
             
             <div class="cta-group">
-                <!-- Botão de Download (PWA) -->
-               <button id="install-btn" class="btn-primary">
+                <button id="install-btn" class="btn-primary">
                     <i class="fa-solid fa-download"></i> Baixar para o Celular
                 </button>
                 
-                <!-- Botão que abre o App -->
                 <a href="/app" class="btn-secondary">
                     <i class="fa-solid fa-arrow-right-to-bracket"></i> Abrir o AcadeMax
                 </a>
@@ -118,12 +129,27 @@
         </div>
     </section>
 
-      <script>
+    <script>
         let deferredPrompt;
         const installBtn = document.getElementById('install-btn');
 
-        // Remove o display: none para o botão sempre aparecer
-        installBtn.style.display = 'flex';
+        // Função para mostrar o Toast elegante
+        function showToast(messageHTML) {
+            let toast = document.getElementById('academax-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'academax-toast';
+                document.body.appendChild(toast);
+            }
+            toast.innerHTML = messageHTML;
+            toast.classList.add('show');
+            
+            // Esconde o toast após 7 segundos
+            clearTimeout(toast._timeout);
+            toast._timeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 7000);
+        }
 
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
@@ -132,7 +158,7 @@
 
         installBtn.addEventListener('click', async () => {
             if (deferredPrompt) {
-                // Se o navegador suportar, abre a janelinha de instalação
+                // Se o navegador suportar instalação automática
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
                 if (outcome === 'accepted') {
@@ -140,8 +166,13 @@
                 }
                 deferredPrompt = null;
             } else {
-                // Se o navegador não suportar (ex: iPhone ou Firefox), mostra as instruções
-                alert("Para instalar o AcadeMax:\n\n📱 No Android (Chrome): toque nos 3 pontinhos no canto superior e selecione 'Instalar aplicativo'.\n📱 No iPhone (Safari): toque no ícone de Compartilhar (quadrado com seta) e escolha 'Adicionar à Tela de Início'.\n💻 No PC (Chrome/Edge): clique no ícone de instalação (um monitorzinho com uma seta) na barra de endereços lá em cima.");
+                // Se o navegador não suportar, mostra o tutorial no Toast
+                showToast(`
+                    <p style="font-weight:700; color:var(--accent);"><i class="fa-solid fa-mobile-screen"></i> Como instalar o AcadeMax</p>
+                    <p>📱 <strong>Android:</strong> Menu (3 pontinhos) > "Instalar aplicativo".</p>
+                    <p>📱 <strong>iPhone:</strong> Compartilhar > "Adicionar à Tela de Início".</p>
+                    <p>💻 <strong>PC:</strong> Clique no ícone de instalação na barra de endereços.</p>
+                `);
             }
         });
     </script>
