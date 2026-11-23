@@ -336,7 +336,7 @@ app.post('/api/reset-password', async (req, res) => {
 // === LISTAR USUÁRIOS (PROTEGIDO) ===
 app.get('/api/users', authMiddleware, adminMiddleware, async (req, res) => {
     const users = await prisma.user.findMany({
-        select: { id: true, name: true, email: true, picture: true, phone: true, isAdmin: true, createdAt: true, mfaEnabled: true }
+        select: { id: true, name: true, email: true, picture: true, phone: true, isAdmin: true, createdAt: true, mfaEnabled: true, ficha: true }
     });
     res.json(users);
 });
