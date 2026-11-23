@@ -135,13 +135,6 @@
             </div>
         </div>
     </section>
-    
-        // Registrar o Service Worker para o PWA funcionar na Landing Page
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW erro:', err));
-            });
-        }
 
     <script>
         let deferredPrompt;
