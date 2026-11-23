@@ -104,33 +104,53 @@ function setButtonLoading(btn, loading) {
 // === CARREGAMENTO DO BANCO ===
 // =============================================
 async function loadDB() {
+    // Tenta buscar os dados novos no servidor
     try {
-        // NOVO: Agora busca o usuário, os treinos e o histórico ao mesmo tempo
         const [resU, resW, resH] = await Promise.all([
             authFetch(`${API}/users/${loggedUser.id}`),
             authFetch(`${API}/workouts/${loggedUser.id}`),
             authFetch(`${API}/history/${loggedUser.id}`)
         ]);
         
-        // NOVO: Pega os dados atualizados do banco e salva no navegador
         const freshUser = await resU.json();
         Object.assign(loggedUser, freshUser);
         localStorage.setItem('academax_user', JSON.stringify(loggedUser));
         
         DB.workouts = await resW.json();
         DB.history  = await resH.json();
+
+        // 👇 NOVO: Salva uma cópia no celular para usar offline
+        localStorage.setItem('academax_offline_workouts', JSON.stringify(DB.workouts));
+        localStorage.setItem('academax_offline_history', JSON.stringify(DB.history));
         
-        // Carrega dados atualizados do banco na memória do app
         userGoals = loggedUser.goals || [];
         bodyMeasures = loggedUser.measures || [];
         schedule = loggedUser.schedule || {};
+        
         restoreActiveWorkoutState();
         renderDashboard();
         renderWorkouts();
         renderHistory();
+        
+        document.body.classList.remove('offline-mode'); // Remove aviso visual
     } catch (err) {
-        console.error(err);
-        showToast(err.message || 'Erro ao conectar com o servidor.', 'warning');
+        // 👇 NOVO: Se der erro (sem internet), carrega a cópia do celular
+        console.warn("Sem internet. Carregando modo offline...");
+        showToast('Você está offline. Usando dados salvos.', 'warning');
+        
+        DB.workouts = JSON.parse(localStorage.getItem('academax_offline_workouts') || '[]');
+        DB.history  = JSON.parse(localStorage.getItem('academax_offline_history') || '[]');
+        
+        userGoals = loggedUser.goals || [];
+        bodyMeasures = loggedUser.measures || [];
+        schedule = loggedUser.schedule || {};
+        
+        restoreActiveWorkoutState();
+        renderDashboard();
+        renderWorkouts();
+        renderHistory();
+        
+        document.body.classList.add('offline-mode'); // Adiciona classe visual
     }
 }
 
