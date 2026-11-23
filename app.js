@@ -597,10 +597,20 @@ async function saveNewWorkout() {
                 showToast('Treino criado!', 'success');
             }
             renderWorkouts();
-        } else {
-            viewClient(targetUserIdForWorkout);
-            showToast('Treino recomendado ao cliente!', 'success');
-        }
+         } else {
+        // Notifica o cliente sobre o novo treino recomendado
+        authFetch(`${API}/users/${targetUserIdForWorkout}/notifications`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'workout',
+                title: 'Novo treino recomendado!',
+                message: `Seu personal recomendou o treino "${name}". Confira agora!`
+            })
+        }).catch(() => {});
+        viewClient(targetUserIdForWorkout);
+        showToast('Treino recomendado ao cliente!', 'success');
+    }
     } catch (e) {
         showToast('Erro ao criar treino.', 'error');
         console.error(e);
@@ -1365,7 +1375,14 @@ async function viewClient(id) {
                     <i class="fa-solid fa-plus"></i> Recomendar
                 </button>
             </div>
-            <div class="workouts-list">${workoutsHTML}</div>
+                 <div class="workouts-list">${workoutsHTML}</div>
+        </div>
+        <div class="card">
+            <h3 class="card-label" style="margin-bottom:14px;"><i class="fa-solid fa-paper-plane" style="margin-right:6px;color:var(--accent);"></i>Enviar Mensagem</h3>
+            <textarea id="admin-msg-input" rows="3" placeholder="Ex: Não esqueça do treino de pernas hoje!"></textarea>
+            <button class="btn-primary btn-full" id="admin-msg-btn" onclick="adminSendMessage('${id}')">
+                <i class="fa-solid fa-paper-plane"></i> Enviar mensagem
+            </button>
         </div>
         <div class="card danger-zone">
             <h3 class="card-label" style="margin-bottom:12px;"><i class="fa-solid fa-triangle-exclamation"></i> Zona de Perigo</h3>
@@ -1453,18 +1470,25 @@ async function saveAdminFicha(clientId) {
         objetivo:     selectedObjetivo, nivel: selectedNivel,
         updatedAt:    new Date().toISOString()
     };
-    try {
-        await authFetch(`${API}/users/${clientId}/user-data`, {
+       try {
+        await authFetch(`${API}/users/${clientId}/ficha`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ficha: fichaData })
+            body: JSON.stringify(fichaData)
         });
+        authFetch(`${API}/users/${clientId}/notifications`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'ficha',
+                title: 'Ficha de saúde atualizada',
+                message: 'Seu personal atualizou sua ficha de saúde. Confira no seu perfil!'
+            })
+        }).catch(() => {});
         const i = globalClients.findIndex(u => u.id === clientId);
         if (i >= 0) globalClients[i].ficha = fichaData;
         showToast('Ficha salva!', 'success');
-    } catch (e) { 
-        showToast('Erro ao salvar ficha.', 'error'); 
-        console.error(e);
-    }
+    } catch (e) { showToast('Erro ao salvar.', 'error'); }
+
     setButtonLoading(btn, false);
 }
 
@@ -2062,6 +2086,170 @@ function deleteGoal(id) {
     });
 }
 
+let notifCache = [];
+let notifLastCount = -1;
+
+// Busca as notificações do usuário no servidor
+async function loadNotifications(silent = true) {
+    try {
+        const res = await authFetch(`${API}/notifications/${loggedUser.id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const unreadBefore = notifCache.filter(n => !n.read).length;
+        notifCache = data;
+        renderNotifBadge();
+        const unreadNow = notifCache.filter(n => !n.read).length;
+        // Aviso sonoro + toast quando chega notificação nova com o app aberto
+        if (silent && notifLastCount !== -1 && unreadNow > unreadBefore) {
+            showToast(`Você tem ${unreadNow} nova(s) notificação(ões)!`, 'info');
+            playNotifSound();
+        }
+        notifLastCount = unreadNow;
+        // se o painel estiver aberto, atualiza a lista em tempo real
+        const panel = document.getElementById('notif-panel');
+        if (panel && !panel.classList.contains('hidden')) renderNotifList();
+    } catch (e) { /* falha silenciosa */ }
+}
+
+// Desenha o número vermelho no sininho
+function renderNotifBadge() {
+    const badge = document.getElementById('notif-badge');
+    if (!badge) return;
+    const unread = notifCache.filter(n => !n.read).length;
+    if (unread > 0) {
+        badge.textContent = unread > 9 ? '9+' : unread;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
+// Abre/fecha o painel do sininho
+function toggleNotifPanel(e) {
+    if (e) e.stopPropagation();
+    const panel = document.getElementById('notif-panel');
+    if (!panel) return;
+    const wasHidden = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden');
+    if (wasHidden) {
+        renderNotifList();
+        markNotifsRead();
+    }
+}
+
+// Desenha a lista de notificações dentro do painel
+function renderNotifList() {
+    const list = document.getElementById('notif-list');
+    if (!list) return;
+    if (!notifCache.length) {
+        list.innerHTML = `
+            <div class="notif-empty">
+                <i class="fa-regular fa-bell-slash"></i>
+                <p>Nenhuma notificação por aqui.<br>Quando seu personal recomendar um treino ou enviar uma mensagem, ela aparece aqui!</p>
+            </div>`;
+        return;
+    }
+    const styles = {
+        workout: { icon: 'fa-dumbbell',      bg: 'var(--accent)' },
+        message: { icon: 'fa-comment-dots',  bg: '#0ea5e9' },
+        ficha:   { icon: 'fa-notes-medical', bg: '#f59e0b' }
+    };
+    list.innerHTML = notifCache.map(n => {
+        const s = styles[n.type] || styles.message;
+        const d = new Date(n.date);
+        const dateStr = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) +
+                        ' · ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const action = n.type === 'workout'
+            ? `<button class="notif-action" onclick="goToRecommended()">Ver treino</button>` : '';
+        return `
+        <div class="notif-item ${n.read ? '' : 'unread'}">
+            <div class="notif-icon" style="background:${s.bg};"><i class="fa-solid ${s.icon}"></i></div>
+            <div class="notif-body">
+                <div class="notif-title">${n.title}</div>
+                <div class="notif-msg">${n.message}</div>
+                <div class="notif-date">${dateStr}${action}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// Botão "Ver treino" -> vai para a lista de treinos
+function goToRecommended() {
+    toggleNotifPanel();
+    navigateTo('workouts');
+}
+
+// Marca tudo como lido (some com o número vermelho)
+async function markNotifsRead() {
+    if (!notifCache.some(n => !n.read)) return;
+    try {
+        await authFetch(`${API}/notifications/${loggedUser.id}/read`, { method: 'PUT' });
+        notifCache = notifCache.map(n => ({ ...n, read: true }));
+        renderNotifBadge();
+        renderNotifList();
+    } catch (e) {}
+}
+
+// Limpa todas as notificações
+async function clearNotifications() {
+    showConfirm('Limpar notificações', 'Apagar todas as notificações?', '🔕', async () => {
+        try {
+            await authFetch(`${API}/notifications/${loggedUser.id}`, { method: 'DELETE' });
+            notifCache = [];
+            notifLastCount = 0;
+            renderNotifBadge();
+            renderNotifList();
+            showToast('Notificações limpas!', 'success');
+        } catch (e) { showToast('Erro ao limpar.', 'error'); }
+    });
+}
+
+// Som "din din" quando chega notificação nova
+function playNotifSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.setValueAtTime(1174, ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.07, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        osc.start(); osc.stop(ctx.currentTime + 0.36);
+    } catch (e) {}
+}
+
+// Fecha o painel ao clicar fora
+document.addEventListener('click', e => {
+    const panel = document.getElementById('notif-panel');
+    const wrap  = document.querySelector('.notif-wrap');
+    if (panel && wrap && !panel.classList.contains('hidden') && !wrap.contains(e.target)) {
+        panel.classList.add('hidden');
+    }
+});
+
+// === ADMIN: enviar mensagem para um cliente ===
+async function adminSendMessage(clientId) {
+    const input = document.getElementById('admin-msg-input');
+    const msg = input.value.trim();
+    if (!msg) { showToast('Escreva uma mensagem primeiro.', 'warning'); return; }
+    const btn = document.getElementById('admin-msg-btn');
+    setButtonLoading(btn, true);
+    try {
+        const res = await authFetch(`${API}/users/${clientId}/notifications`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'message', title: 'Mensagem do Personal', message: msg })
+        });
+        const data = await res.json();
+        if (data.error) { showToast(data.error, 'error'); return; }
+        input.value = '';
+        showToast('Mensagem enviada! O cliente verá no sininho.', 'success');
+    } catch (e) { showToast('Erro de conexão.', 'error'); }
+    setButtonLoading(btn, false);
+}
+
 applyTheme();
 
 // === SERVICE WORKER (PWA) ===
@@ -2070,5 +2258,10 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW erro:', err));
     });
 }
+
+
+
 checkAdminStatus();
 loadDB();
+loadNotifications();                                // carrega o sininho ao abrir
+setInterval(() => loadNotifications(), 30000);      // verifica a cada 30 segundos

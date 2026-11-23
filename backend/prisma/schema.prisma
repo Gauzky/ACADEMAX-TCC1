@@ -22,6 +22,7 @@ model User {
   goals      Json?
   measures   Json?
   schedule   Json?
+  notifications Json?
   createdAt  DateTime @default(now())
   workouts   Workout[]
   sessions   WorkoutSession[]

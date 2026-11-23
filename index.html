@@ -31,9 +31,22 @@
             <div class="header-icon" id="theme-btn" onclick="toggleTheme()" title="Alternar tema">
                 <i class="fa-solid fa-sun"></i>
             </div>
-            <div class="header-icon" title="Notificações">
-                <i class="fa-solid fa-bell"></i>
+          <div class="notif-wrap">
+    <button class="icon-btn" onclick="toggleNotifPanel(event)" aria-label="Notificações" title="Notificações">
+        <i class="fa-regular fa-bell"></i>
+        <span id="notif-badge" class="notif-badge hidden">0</span>
+    </button>
+    <div id="notif-panel" class="notif-panel hidden">
+        <div class="notif-header">
+            <h3><i class="fa-regular fa-bell" style="margin-right:6px;"></i>Notificações</h3>
+            <div class="notif-header-actions">
+                <button onclick="clearNotifications()" title="Limpar tudo"><i class="fa-solid fa-broom"></i></button>
+                <button onclick="toggleNotifPanel()" title="Fechar"><i class="fa-solid fa-xmark"></i></button>
             </div>
+        </div>
+        <div id="notif-list" class="notif-list"></div>
+    </div>
+</div>
         </div>
     </header>
 

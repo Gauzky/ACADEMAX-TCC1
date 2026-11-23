@@ -552,5 +552,91 @@ app.put('/api/users/:id/user-data', authMiddleware, async (req, res) => {
     }
 });
 
+// ============================================================
+// === NOTIFICAÇÕES (SININHO) ===
+// ============================================================
+
+// Helper: busca quem está fazendo a requisição (dono do x-user-id)
+async function getRequester(req) {
+    const id = req.headers['x-user-id'];
+    if (!id) return null;
+    return prisma.user.findUnique({ where: { id } });
+}
+
+// Buscar notificações do usuário logado
+app.get('/api/notifications/:userId', authMiddleware, async (req, res) => {
+    try {
+        const requester = await getRequester(req);
+        if (!requester) return res.status(401).json({ error: 'Não autorizado' });
+        if (requester.id !== req.params.userId && !requester.isAdmin)
+            return res.status(403).json({ error: 'Sem permissão' });
+
+        const user = await prisma.user.findUnique({ where: { id: req.params.userId } });
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+        res.json(user.notifications || []);
+    } catch (err) {
+        console.error('Erro notificações:', err);
+        res.status(500).json({ error: 'Erro ao buscar notificações' });
+    }
+});
+
+// Enviar notificação para um cliente (APENAS ADMIN)
+app.post('/api/users/:id/notifications', authMiddleware, async (req, res) => {
+    try {
+        const requester = await getRequester(req);
+        if (!requester || !requester.isAdmin)
+            return res.status(403).json({ error: 'Apenas administradores podem enviar' });
+
+        const client = await prisma.user.findUnique({ where: { id: req.params.id } });
+        if (!client) return res.status(404).json({ error: 'Cliente não encontrado' });
+
+        const { type, title, message } = req.body || {};
+        const notification = {
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+            type: ['message', 'workout', 'ficha'].includes(type) ? type : 'message',
+            title: (title || 'Nova mensagem').slice(0, 120),
+            message: (message || '').slice(0, 500),
+            read: false,
+            date: new Date().toISOString()
+        };
+        const notifications = [notification, ...(client.notifications || [])].slice(0, 50);
+        await prisma.user.update({ where: { id: client.id }, data: { notifications } });
+        res.status(201).json(notification);
+    } catch (err) {
+        console.error('Erro enviar notificação:', err);
+        res.status(500).json({ error: 'Erro ao enviar notificação' });
+    }
+});
+
+// Marcar todas como lidas
+app.put('/api/notifications/:userId/read', authMiddleware, async (req, res) => {
+    try {
+        const requester = await getRequester(req);
+        if (!requester || (requester.id !== req.params.userId && !requester.isAdmin))
+            return res.status(403).json({ error: 'Sem permissão' });
+
+        const user = await prisma.user.findUnique({ where: { id: req.params.userId } });
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+        const notifications = (user.notifications || []).map(n => ({ ...n, read: true }));
+        await prisma.user.update({ where: { id: user.id }, data: { notifications } });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Erro ao marcar notificações' });
+    }
+});
+
+// Limpar todas as notificações
+app.delete('/api/notifications/:userId', authMiddleware, async (req, res) => {
+    try {
+        const requester = await getRequester(req);
+        if (!requester || (requester.id !== req.params.userId && !requester.isAdmin))
+            return res.status(403).json({ error: 'Sem permissão' });
+        await prisma.user.update({ where: { id: req.params.userId }, data: { notifications: [] } });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: 'Erro ao limpar notificações' });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Backend do AcadeMax rodando na porta ${PORT}`));
