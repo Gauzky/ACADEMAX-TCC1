@@ -621,3 +621,6 @@ app.delete('/api/notifications/:userId', authMiddleware, async (req, res) => {
         res.status(500).json({ error: 'Erro ao limpar notificações' });
     }
 });
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Backend do AcadeMax rodando na porta ${PORT}`));
