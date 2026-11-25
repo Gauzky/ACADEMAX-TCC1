@@ -463,13 +463,16 @@ select { cursor: pointer; }
     margin-bottom: 14px;
     overflow-x: auto; 
     -webkit-overflow-scrolling: touch; 
-    padding-bottom: 6px;
+    padding-bottom: 4px;
     width: 100%;
-    scrollbar-width: thin; 
+    
+    /* 👇 NOVO: Esconde a barra de rolagem visual */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
 }
-
-.exercises-tabs::-webkit-scrollbar { height: 4px; }
-.exercises-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.exercises-tabs::-webkit-scrollbar {
+    display: none; /* Chrome/Safari/Opera */
+}
 
 .tab-btn {
     flex-shrink: 0; 
@@ -486,16 +489,8 @@ select { cursor: pointer; }
     font-family: 'DM Sans', sans-serif;
 }
 
-.tab-btn:hover {
-    color: var(--text-1);
-    border-color: var(--accent-border);
-}
-
-.tab-btn.active-tab {
-    background: var(--accent);
-    color: #fff;
-    border-color: var(--accent);
-}
+.tab-btn:hover { color: var(--text-1); border-color: var(--accent-border); }
+.tab-btn.active-tab { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 .exercises-library {
     border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden;
