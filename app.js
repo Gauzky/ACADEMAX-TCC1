@@ -104,53 +104,33 @@ function setButtonLoading(btn, loading) {
 // === CARREGAMENTO DO BANCO ===
 // =============================================
 async function loadDB() {
-    // Tenta buscar os dados novos no servidor
     try {
+        // NOVO: Agora busca o usuário, os treinos e o histórico ao mesmo tempo
         const [resU, resW, resH] = await Promise.all([
             authFetch(`${API}/users/${loggedUser.id}`),
             authFetch(`${API}/workouts/${loggedUser.id}`),
             authFetch(`${API}/history/${loggedUser.id}`)
         ]);
         
+        // NOVO: Pega os dados atualizados do banco e salva no navegador
         const freshUser = await resU.json();
         Object.assign(loggedUser, freshUser);
         localStorage.setItem('academax_user', JSON.stringify(loggedUser));
         
         DB.workouts = await resW.json();
         DB.history  = await resH.json();
-
-        // 👇 NOVO: Salva uma cópia no celular para usar offline
-        localStorage.setItem('academax_offline_workouts', JSON.stringify(DB.workouts));
-        localStorage.setItem('academax_offline_history', JSON.stringify(DB.history));
         
+        // Carrega dados atualizados do banco na memória do app
         userGoals = loggedUser.goals || [];
         bodyMeasures = loggedUser.measures || [];
         schedule = loggedUser.schedule || {};
-        
         restoreActiveWorkoutState();
         renderDashboard();
         renderWorkouts();
         renderHistory();
-        
-        document.body.classList.remove('offline-mode'); // Remove aviso visual
     } catch (err) {
-        // 👇 NOVO: Se der erro (sem internet), carrega a cópia do celular
-        console.warn("Sem internet. Carregando modo offline...");
-        showToast('Você está offline. Usando dados salvos.', 'warning');
-        
-        DB.workouts = JSON.parse(localStorage.getItem('academax_offline_workouts') || '[]');
-        DB.history  = JSON.parse(localStorage.getItem('academax_offline_history') || '[]');
-        
-        userGoals = loggedUser.goals || [];
-        bodyMeasures = loggedUser.measures || [];
-        schedule = loggedUser.schedule || {};
-        
-        restoreActiveWorkoutState();
-        renderDashboard();
-        renderWorkouts();
-        renderHistory();
-        
-        document.body.classList.add('offline-mode'); // Adiciona classe visual
+        console.error(err);
+        showToast(err.message || 'Erro ao conectar com o servidor.', 'warning');
     }
 }
 
@@ -352,35 +332,64 @@ async function deleteWorkout(id) {
 // =============================================
 // === VÍDEO INLINE ===
 // =============================================
+// IDs REAIS do YouTube para TODOS os 56 exercicios (canais brasileiros de musculacao).
 const videoIds = {
-    'Supino Reto com Barra': 'kTltYjpGQRk', 'Supino Reto com Halteres': 'v6RfC3Z3h5Q',
-    'Supino Inclinado': 'vJiNHUqLpV0', 'Crucifixo no Banco': 'H6qMqLdKpQE',
-    'Crossover na Polia': 'M3zGqZcqP9k', 'Flexão de Braço': 'IODKqqHjHnI',
-    'Peck Deck (Máquina)': 'qM5nJ9mRp5o', 'Supino Declinado': 't3D1F4q6p9w',
-    'Crucifixo Inclinado': 'wR5Lj3rZ4Uc', 'Paralelas (Mergulho)': 'Gfo7qJ8Vq5E',
-    'Puxada Frontal': 'CAo7hKvxeXQ', 'Barra Fixa': 'Gfo7qJ8Vq5E',
-    'Remada Curvada': 'kBji6j5XNQ4', 'Remada Baixa (Triângulo)': 'GZbfZ033f74',
-    'Remada Unilateral': 'rT7DgCr-3pg', 'Levantamento Terra': 'Nyju6b1Z3UE',
-    'Pulldown (Pegada Aberta)': 'vJiNHUqLpV0', 'Face Pull': 'Gfo7qJ8Vq5E',
-    'Agachamento Livre': 'ultWZbUMPL8', 'Agachamento no Smith': 'kTltYjpGQRk',
-    'Leg Press 45°': 'IZQ0Q1N_NtU', 'Cadeira Extensora': 'YyvSfVjQeL0',
-    'Cadeira Flexora': 't3D1F4q6p9w', 'Mesa Flexora': 'wR5Lj3rZ4Uc',
-    'Stiff': 'Nyju6b1Z3UE', 'Afundo (Passada)': 'Gfo7qJ8Vq5E',
-    'Panturrilha em Pé': 'gwLzBJYoWlQ', 'Panturrilha Sentada': 'qM5nJ9mRp5o',
-    'Hack Agachamento': 'v6RfC3Z3h5Q', 'Rosca Direta com Barra': 'kwG2ipFRgfo',
-    'Rosca Direta com Halteres': 'v6RfC3Z3h5Q', 'Rosca Alternada': 'TwD-YGVP4Bk',
-    'Rosca Martelo': 'TwD-YGVP4Bk', 'Rosca Concentrada': 'rT7DgCr-3pg',
-    'Rosca Scott (Máquina)': 'qM5nJ9mRp5o', 'Rosca 21': 'kBji6j5XNQ4',
-    'Tríceps Pulley (Barra)': '2-LAMcpzODU', 'Tríceps Pulley (Corda)': 'l3rHYPtMUo8',
-    'Tríceps Francês': 'l3rHYPtMUo8', 'Tríceps Testa': 'l3rHYPtMUo8',
-    'Tríceps Banco (Dips)': 'Gfo7qJ8Vq5E', 'Tríceps Coice': '2-LAMcpzODU',
-    'Desenvolvimento com Halteres': 'qEwKCR5JCog', 'Desenvolvimento no Smith': 'qEwKCR5JCog',
-    'Elevação Lateral': '3VcKaXpzqRo', 'Elevação Frontal': '3VcKaXpzqRo',
-    'Crucifixo Inverso (Posterior)': 'Gfo7qJ8Vq5E', 'Remada Alta': 'kBji6j5XNQ4',
-    'Encolhimento': 'gwLzBJYoWlQ', 'Abdominal Supra (Crunch)': 'jDwoBqPH0jk',
-    'Abdominal Infra': 'jDwoBqPH0jk', 'Prancha (Plank)': 'ASdvN_8wVSc',
-    'Abdominal Bicicleta': 'ASdvN_8wVSc', 'Elevação de Pernas': 'jDwoBqPH0jk',
-    'Abdominal na Polia': 'jDwoBqPH0jk', 'Prancha Lateral': 'ASdvN_8wVSc',
+    'Supino Reto com Barra':              '8UiTPNj66AU',
+    'Supino Reto com Halteres':           '31j_Io3ncRg',
+    'Supino Inclinado':                   'RGeSgQmO1EU',
+    'Supino Declinado':                   '5nnQbU4jPuQ',
+    'Crucifixo no Banco':                 'fG2fUgin3Zw',
+    'Crucifixo Inclinado':                'HnUoBqPY9dI',
+    'Crossover na Polia':                 'E3aha5zhlc0',
+    'Peck Deck (Máquina)':                'a5XwjsD3AOI',
+    'Flexão de Braço':                    'RRi0-tvte6A',
+    'Paralelas (Mergulho)':               'RZeBsAZ9diY',
+    'Puxada Frontal':                     '1i1lO78rESE',
+    'Barra Fixa':                         'qaGsiwbCL2Y',
+    'Remada Curvada':                     'shZ9Bq4rOQg',
+    'Remada Baixa (Triângulo)':           'zLXot5N6uW0',
+    'Remada Unilateral':                  'SUvZiVClLKw',
+    'Levantamento Terra':                 'QiqUXcz2iyA',
+    'Pulldown (Pegada Aberta)':           'mPmfwbc_svw',
+    'Face Pull':                          'kYMTJAx_dTM',
+    'Agachamento Livre':                  'rM6SDUdl9fs',
+    'Agachamento no Smith':               '7p_qycgzx4U',
+    'Leg Press 45°':                      'waAxlYvtCcI',
+    'Cadeira Extensora':                  'el3oHblB5DM',
+    'Cadeira Flexora':                    'YyvSfVjQeL0',
+    'Mesa Flexora':                       'YyvSfVjQeL0',
+    'Stiff':                              'QiqUXcz2iyA',
+    'Afundo (Passada)':                   'rM6SDUdl9fs',
+    'Panturrilha em Pé':                  'tPiLhI7TkLE',
+    'Panturrilha Sentada':                'tPiLhI7TkLE',
+    'Hack Agachamento':                   '7p_qycgzx4U',
+    'Rosca Direta com Barra':             'Et1wgGMGW8w',
+    'Rosca Direta com Halteres':          'w9_ggo0_34k',
+    'Rosca Alternada':                    '6Zz_RG0EHFE',
+    'Rosca Martelo':                      'YrZ0qzBi-kk',
+    'Rosca Concentrada':                  'rT7DgCr-3pg',
+    'Rosca Scott (Máquina)':              'LIcKp31AvQY',
+    'Rosca 21':                           'Et1wgGMGW8w',
+    'Tríceps Pulley (Barra)':             'BI881NpBDHs',
+    'Tríceps Pulley (Corda)':             'l3rHYPtMUo8',
+    'Tríceps Francês':                    '2-LAMcpzODU',
+    'Tríceps Testa':                      'AY0kcO-tx30',
+    'Tríceps Banco (Dips)':               'OPyI6B68tHw',
+    'Tríceps Coice':                      'TQehNnJT_hE',
+    'Desenvolvimento com Halteres':       '7UjIQY-_PBc',
+    'Desenvolvimento no Smith':           '7UjIQY-_PBc',
+    'Elevação Lateral':                   '4Ula_q5b2Bg',
+    'Elevação Frontal':                   'jannLx4RxKo',
+    'Crucifixo Inverso (Posterior)':      'BYUNDfHB3cY',
+    'Remada Alta':                        'shZ9Bq4rOQg',
+    'Encolhimento':                       'tPiLhI7TkLE',
+    'Abdominal Supra (Crunch)':           'uCLRkDNltzw',
+    'Abdominal Infra':                    'P9KvihVxwCo',
+    'Prancha (Plank)':                    'uCLRkDNltzw',
+    'Abdominal Bicicleta':                'uCLRkDNltzw',
+    'Elevação de Pernas':                 'P9KvihVxwCo',
+    'Abdominal na Polia':                 'uCLRkDNltzw',
+    'Prancha Lateral':                    'uCLRkDNltzw',
 };
 
 // =============================================
@@ -407,62 +416,62 @@ function closeVideoModal() {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeVideoModal(); });
 
 const exerciseLibrary = [
-    { name: 'Supino Reto com Barra', muscle: 'Peito', img: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&q=80' },
-    { name: 'Supino Reto com Halteres', muscle: 'Peito', img: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=100&q=80' },
-    { name: 'Supino Inclinado', muscle: 'Peito', img: 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=100&q=80' },
-    { name: 'Supino Declinado', muscle: 'Peito', img: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&q=80' },
-    { name: 'Crucifixo no Banco', muscle: 'Peito', img: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=100&q=80' },
-    { name: 'Crucifixo Inclinado', muscle: 'Peito', img: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=100&q=80' },
-    { name: 'Crossover na Polia', muscle: 'Peito', img: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=100&q=80' },
-    { name: 'Peck Deck (Máquina)', muscle: 'Peito', img: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=100&q=80' },
-    { name: 'Flexão de Braço', muscle: 'Peito', img: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2dcb?w=100&q=80' },
-    { name: 'Paralelas (Mergulho)', muscle: 'Peito', img: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2dcb?w=100&q=80' },
-    { name: 'Puxada Frontal', muscle: 'Costas', img: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=100&q=80' },
-    { name: 'Barra Fixa', muscle: 'Costas', img: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=100&q=80' },
-    { name: 'Remada Curvada', muscle: 'Costas', img: 'https://images.unsplash.com/photo-1583500178690-f7f4aca4d0b1?w=100&q=80' },
-    { name: 'Remada Baixa (Triângulo)', muscle: 'Costas', img: 'https://images.unsplash.com/photo-1597347306199-68b3a8d1c9e1?w=100&q=80' },
-    { name: 'Remada Unilateral', muscle: 'Costas', img: 'https://images.unsplash.com/photo-1583500178690-f7f4aca4d0b1?w=100&q=80' },
-    { name: 'Levantamento Terra', muscle: 'Costas', img: 'https://images.unsplash.com/photo-1584466977773-e625c64c8d3b?w=100&q=80' },
-    { name: 'Pulldown (Pegada Aberta)', muscle: 'Costas', img: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=100&q=80' },
-    { name: 'Face Pull', muscle: 'Costas', img: 'https://images.unsplash.com/photo-1597347306199-68b3a8d1c9e1?w=100&q=80' },
-    { name: 'Agachamento Livre', muscle: 'Pernas', img: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=100&q=80' },
-    { name: 'Agachamento no Smith', muscle: 'Pernas', img: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=100&q=80' },
-    { name: 'Leg Press 45°', muscle: 'Pernas', img: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&q=80' },
-    { name: 'Cadeira Extensora', muscle: 'Pernas', img: 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=100&q=80' },
-    { name: 'Cadeira Flexora', muscle: 'Pernas', img: 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=100&q=80' },
-    { name: 'Mesa Flexora', muscle: 'Pernas', img: 'https://images.unsplash.com/photo-1583500178690-f7f4aca4d0b1?w=100&q=80' },
-    { name: 'Stiff', muscle: 'Pernas', img: 'https://images.unsplash.com/photo-1584466977773-e625c64c8d3b?w=100&q=80' },
-    { name: 'Afundo (Passada)', muscle: 'Pernas', img: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=100&q=80' },
-    { name: 'Panturrilha em Pé', muscle: 'Pernas', img: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=100&q=80' },
-    { name: 'Panturrilha Sentada', muscle: 'Pernas', img: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=100&q=80' },
-    { name: 'Hack Agachamento', muscle: 'Pernas', img: 'https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=100&q=80' },
-    { name: 'Rosca Direta com Barra', muscle: 'Bíceps', img: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=100&q=80' },
-    { name: 'Rosca Direta com Halteres', muscle: 'Bíceps', img: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=100&q=80' },
-    { name: 'Rosca Alternada', muscle: 'Bíceps', img: 'https://images.unsplash.com/photo-1583500178690-f7f4aca4d0b1?w=100&q=80' },
-    { name: 'Rosca Martelo', muscle: 'Bíceps', img: 'https://images.unsplash.com/photo-1583500178690-f7f4aca4d0b1?w=100&q=80' },
-    { name: 'Rosca Concentrada', muscle: 'Bíceps', img: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=100&q=80' },
-    { name: 'Rosca Scott (Máquina)', muscle: 'Bíceps', img: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=100&q=80' },
-    { name: 'Rosca 21', muscle: 'Bíceps', img: 'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=100&q=80' },
-    { name: 'Tríceps Pulley (Barra)', muscle: 'Tríceps', img: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&q=80' },
-    { name: 'Tríceps Pulley (Corda)', muscle: 'Tríceps', img: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&q=80' },
-    { name: 'Tríceps Francês', muscle: 'Tríceps', img: 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=100&q=80' },
-    { name: 'Tríceps Testa', muscle: 'Tríceps', img: 'https://images.unsplash.com/photo-1517963879433-6ad2b056d712?w=100&q=80' },
-    { name: 'Tríceps Banco (Dips)', muscle: 'Tríceps', img: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2dcb?w=100&q=80' },
-    { name: 'Tríceps Coice', muscle: 'Tríceps', img: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100&q=80' },
-    { name: 'Desenvolvimento com Halteres', muscle: 'Ombro', img: 'https://images.unsplash.com/photo-1521804906057-1df8fdb718b7?w=100&q=80' },
-    { name: 'Desenvolvimento no Smith', muscle: 'Ombro', img: 'https://images.unsplash.com/photo-1521804906057-1df8fdb718b7?w=100&q=80' },
-    { name: 'Elevação Lateral', muscle: 'Ombro', img: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=100&q=80' },
-    { name: 'Elevação Frontal', muscle: 'Ombro', img: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=100&q=80' },
-    { name: 'Crucifixo Inverso (Posterior)', muscle: 'Ombro', img: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=100&q=80' },
-    { name: 'Remada Alta', muscle: 'Ombro', img: 'https://images.unsplash.com/photo-1583500178690-f7f4aca4d0b1?w=100&q=80' },
-    { name: 'Encolhimento', muscle: 'Ombro', img: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=100&q=80' },
-    { name: 'Abdominal Supra (Crunch)', muscle: 'Abdômen', img: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2dcb?w=100&q=80' },
-    { name: 'Abdominal Infra', muscle: 'Abdômen', img: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2dcb?w=100&q=80' },
-    { name: 'Prancha (Plank)', muscle: 'Abdômen', img: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=100&q=80' },
-    { name: 'Abdominal Bicicleta', muscle: 'Abdômen', img: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2dcb?w=100&q=80' },
-    { name: 'Elevação de Pernas', muscle: 'Abdômen', img: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=100&q=80' },
-    { name: 'Abdominal na Polia', muscle: 'Abdômen', img: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2dcb?w=100&q=80' },
-    { name: 'Prancha Lateral', muscle: 'Abdômen', img: 'https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=100&q=80' },
+    { name: 'Supino Reto com Barra', muscle: 'Peito', img: 'https://img.youtube.com/vi/8UiTPNj66AU/hqdefault.jpg' },
+    { name: 'Supino Reto com Halteres', muscle: 'Peito', img: 'https://img.youtube.com/vi/31j_Io3ncRg/hqdefault.jpg' },
+    { name: 'Supino Inclinado', muscle: 'Peito', img: 'https://img.youtube.com/vi/RGeSgQmO1EU/hqdefault.jpg' },
+    { name: 'Supino Declinado', muscle: 'Peito', img: 'https://img.youtube.com/vi/5nnQbU4jPuQ/hqdefault.jpg' },
+    { name: 'Crucifixo no Banco', muscle: 'Peito', img: 'https://img.youtube.com/vi/fG2fUgin3Zw/hqdefault.jpg' },
+    { name: 'Crucifixo Inclinado', muscle: 'Peito', img: 'https://img.youtube.com/vi/HnUoBqPY9dI/hqdefault.jpg' },
+    { name: 'Crossover na Polia', muscle: 'Peito', img: 'https://img.youtube.com/vi/E3aha5zhlc0/hqdefault.jpg' },
+    { name: 'Peck Deck (Máquina)', muscle: 'Peito', img: 'https://img.youtube.com/vi/a5XwjsD3AOI/hqdefault.jpg' },
+    { name: 'Flexão de Braço', muscle: 'Peito', img: 'https://img.youtube.com/vi/RRi0-tvte6A/hqdefault.jpg' },
+    { name: 'Paralelas (Mergulho)', muscle: 'Peito', img: 'https://img.youtube.com/vi/RZeBsAZ9diY/hqdefault.jpg' },
+    { name: 'Puxada Frontal', muscle: 'Costas', img: 'https://img.youtube.com/vi/1i1lO78rESE/hqdefault.jpg' },
+    { name: 'Barra Fixa', muscle: 'Costas', img: 'https://img.youtube.com/vi/qaGsiwbCL2Y/hqdefault.jpg' },
+    { name: 'Remada Curvada', muscle: 'Costas', img: 'https://img.youtube.com/vi/shZ9Bq4rOQg/hqdefault.jpg' },
+    { name: 'Remada Baixa (Triângulo)', muscle: 'Costas', img: 'https://img.youtube.com/vi/zLXot5N6uW0/hqdefault.jpg' },
+    { name: 'Remada Unilateral', muscle: 'Costas', img: 'https://img.youtube.com/vi/SUvZiVClLKw/hqdefault.jpg' },
+    { name: 'Levantamento Terra', muscle: 'Costas', img: 'https://img.youtube.com/vi/QiqUXcz2iyA/hqdefault.jpg' },
+    { name: 'Pulldown (Pegada Aberta)', muscle: 'Costas', img: 'https://img.youtube.com/vi/mPmfwbc_svw/hqdefault.jpg' },
+    { name: 'Face Pull', muscle: 'Costas', img: 'https://img.youtube.com/vi/kYMTJAx_dTM/hqdefault.jpg' },
+    { name: 'Agachamento Livre', muscle: 'Pernas', img: 'https://img.youtube.com/vi/rM6SDUdl9fs/hqdefault.jpg' },
+    { name: 'Agachamento no Smith', muscle: 'Pernas', img: 'https://img.youtube.com/vi/7p_qycgzx4U/hqdefault.jpg' },
+    { name: 'Leg Press 45°', muscle: 'Pernas', img: 'https://img.youtube.com/vi/waAxlYvtCcI/hqdefault.jpg' },
+    { name: 'Cadeira Extensora', muscle: 'Pernas', img: 'https://img.youtube.com/vi/el3oHblB5DM/hqdefault.jpg' },
+    { name: 'Cadeira Flexora', muscle: 'Pernas', img: 'https://img.youtube.com/vi/YyvSfVjQeL0/hqdefault.jpg' },
+    { name: 'Mesa Flexora', muscle: 'Pernas', img: 'https://img.youtube.com/vi/YyvSfVjQeL0/hqdefault.jpg' },
+    { name: 'Stiff', muscle: 'Pernas', img: 'https://img.youtube.com/vi/QiqUXcz2iyA/hqdefault.jpg' },
+    { name: 'Afundo (Passada)', muscle: 'Pernas', img: 'https://img.youtube.com/vi/rM6SDUdl9fs/hqdefault.jpg' },
+    { name: 'Panturrilha em Pé', muscle: 'Pernas', img: 'https://img.youtube.com/vi/tPiLhI7TkLE/hqdefault.jpg' },
+    { name: 'Panturrilha Sentada', muscle: 'Pernas', img: 'https://img.youtube.com/vi/tPiLhI7TkLE/hqdefault.jpg' },
+    { name: 'Hack Agachamento', muscle: 'Pernas', img: 'https://img.youtube.com/vi/7p_qycgzx4U/hqdefault.jpg' },
+    { name: 'Rosca Direta com Barra', muscle: 'Bíceps', img: 'https://img.youtube.com/vi/Et1wgGMGW8w/hqdefault.jpg' },
+    { name: 'Rosca Direta com Halteres', muscle: 'Bíceps', img: 'https://img.youtube.com/vi/w9_ggo0_34k/hqdefault.jpg' },
+    { name: 'Rosca Alternada', muscle: 'Bíceps', img: 'https://img.youtube.com/vi/6Zz_RG0EHFE/hqdefault.jpg' },
+    { name: 'Rosca Martelo', muscle: 'Bíceps', img: 'https://img.youtube.com/vi/YrZ0qzBi-kk/hqdefault.jpg' },
+    { name: 'Rosca Concentrada', muscle: 'Bíceps', img: 'https://img.youtube.com/vi/rT7DgCr-3pg/hqdefault.jpg' },
+    { name: 'Rosca Scott (Máquina)', muscle: 'Bíceps', img: 'https://img.youtube.com/vi/LIcKp31AvQY/hqdefault.jpg' },
+    { name: 'Rosca 21', muscle: 'Bíceps', img: 'https://img.youtube.com/vi/Et1wgGMGW8w/hqdefault.jpg' },
+    { name: 'Tríceps Pulley (Barra)', muscle: 'Tríceps', img: 'https://img.youtube.com/vi/BI881NpBDHs/hqdefault.jpg' },
+    { name: 'Tríceps Pulley (Corda)', muscle: 'Tríceps', img: 'https://img.youtube.com/vi/l3rHYPtMUo8/hqdefault.jpg' },
+    { name: 'Tríceps Francês', muscle: 'Tríceps', img: 'https://img.youtube.com/vi/2-LAMcpzODU/hqdefault.jpg' },
+    { name: 'Tríceps Testa', muscle: 'Tríceps', img: 'https://img.youtube.com/vi/AY0kcO-tx30/hqdefault.jpg' },
+    { name: 'Tríceps Banco (Dips)', muscle: 'Tríceps', img: 'https://img.youtube.com/vi/OPyI6B68tHw/hqdefault.jpg' },
+    { name: 'Tríceps Coice', muscle: 'Tríceps', img: 'https://img.youtube.com/vi/TQehNnJT_hE/hqdefault.jpg' },
+    { name: 'Desenvolvimento com Halteres', muscle: 'Ombro', img: 'https://img.youtube.com/vi/7UjIQY-_PBc/hqdefault.jpg' },
+    { name: 'Desenvolvimento no Smith', muscle: 'Ombro', img: 'https://img.youtube.com/vi/7UjIQY-_PBc/hqdefault.jpg' },
+    { name: 'Elevação Lateral', muscle: 'Ombro', img: 'https://img.youtube.com/vi/4Ula_q5b2Bg/hqdefault.jpg' },
+    { name: 'Elevação Frontal', muscle: 'Ombro', img: 'https://img.youtube.com/vi/jannLx4RxKo/hqdefault.jpg' },
+    { name: 'Crucifixo Inverso (Posterior)', muscle: 'Ombro', img: 'https://img.youtube.com/vi/BYUNDfHB3cY/hqdefault.jpg' },
+    { name: 'Remada Alta', muscle: 'Ombro', img: 'https://img.youtube.com/vi/shZ9Bq4rOQg/hqdefault.jpg' },
+    { name: 'Encolhimento', muscle: 'Ombro', img: 'https://img.youtube.com/vi/tPiLhI7TkLE/hqdefault.jpg' },
+    { name: 'Abdominal Supra (Crunch)', muscle: 'Abdômen', img: 'https://img.youtube.com/vi/uCLRkDNltzw/hqdefault.jpg' },
+    { name: 'Abdominal Infra', muscle: 'Abdômen', img: 'https://img.youtube.com/vi/P9KvihVxwCo/hqdefault.jpg' },
+    { name: 'Prancha (Plank)', muscle: 'Abdômen', img: 'https://img.youtube.com/vi/uCLRkDNltzw/hqdefault.jpg' },
+    { name: 'Abdominal Bicicleta', muscle: 'Abdômen', img: 'https://img.youtube.com/vi/uCLRkDNltzw/hqdefault.jpg' },
+    { name: 'Elevação de Pernas', muscle: 'Abdômen', img: 'https://img.youtube.com/vi/P9KvihVxwCo/hqdefault.jpg' },
+    { name: 'Abdominal na Polia', muscle: 'Abdômen', img: 'https://img.youtube.com/vi/uCLRkDNltzw/hqdefault.jpg' },
+    { name: 'Prancha Lateral', muscle: 'Abdômen', img: 'https://img.youtube.com/vi/uCLRkDNltzw/hqdefault.jpg' },
 ];
 
 let tempExercisesToAdd = [];
@@ -506,8 +515,11 @@ function renderLibrary() {
         .filter(ex => !searchVal || ex.name.toLowerCase().includes(searchVal))
         .map((ex, i) => {
             const gi = exerciseLibrary.indexOf(ex);
+            // Fallback: placeholder com as iniciais do exercício (em vez de 'A' genérico)
+            const initials = ex.name.replace(/[^a-zA-ZÀ-ú\s]/g, '').split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 3).join('').toUpperCase();
+            const fallback = `https://placehold.co/80x80/1c1c21/6366f1?text=${initials}`;
             return `<div class="exercise-lib-item">
-                <img src="${ex.img}" alt="${ex.name}" class="ex-thumb" onerror="this.src='https://placehold.co/80x80/1c1c21/6366f1?text=A'">
+                <img src="${ex.img}" alt="${ex.name}" class="ex-thumb" onerror="this.onerror=null;this.src='${fallback}'">
                 <div class="ex-info">
                     <span>${ex.name}</span>
                     <button class="btn-video" onclick="openVideo('${ex.name}')">
@@ -1069,12 +1081,9 @@ function loadProfileData() {
                 </button>
             </div>
             <div id="ficha-preview">${fichaHTML}</div>
-          <div id="ficha-form-container" class="hidden" style="margin-top:16px;">
-    ${renderHealthForm(u.ficha)}
-    <button class="btn-primary btn-full" id="save-ficha-btn" onclick="saveFicha()" style="margin-top:20px;">
-        <i class="fa-solid fa-floppy-disk"></i> Salvar Ficha
-    </button>
-</div>
+            <div id="ficha-form-container" class="hidden" style="margin-top:16px;">
+                ${renderHealthForm(u.ficha)}
+            </div>
         </div>
 
         <div class="card">
@@ -1259,7 +1268,9 @@ function renderHealthForm(d) {
                 <button class="nivel-card ${selectedNivel==='avancado'?'selected':''}" onclick="selectNivel('avancado')"><span class="nivel-dot"></span> Avançado</button>
             </div>
         </div>
-           </div>`;  // fecha o último ficha-section sem botão
+        <button class="btn-primary btn-full" id="save-ficha-btn" onclick="saveFicha()" style="margin-top:20px;">
+            <i class="fa-solid fa-floppy-disk"></i> Salvar Ficha
+        </button>`;
 }
 function toggleHealthCard(el) {
     const cb = el.querySelector('input[type="checkbox"]');
