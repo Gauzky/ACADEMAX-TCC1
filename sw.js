@@ -1,5 +1,5 @@
 // Service Worker — AcadeMax PWA
-const CACHE_NAME = 'academax-v12'; // Mudei a versão para v2 para forçar atualização
+const CACHE_NAME = 'academax-v13'; // Mudei a versão para v2 para forçar atualização
 const ASSETS = [
   '/', '/index.html', '/login.html', '/style.css', '/app.js', '/manifest.json',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',
