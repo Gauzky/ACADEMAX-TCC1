@@ -2,13 +2,11 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <script>
-  // Se aberto como PWA instalado ou dentro do APK, vai direto pro login
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-                    || window.navigator.standalone === true;
-  if (isStandalone) {
+<script>
+  if (/Mobi|Android/i.test(navigator.userAgent)) {
     window.location.replace('/login.html');
   }
+</script>
 </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AcadeMax — Seu treino em outro nível</title>
