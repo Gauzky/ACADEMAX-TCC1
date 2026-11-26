@@ -312,138 +312,13 @@ function renderHistory() {
                 <p>${new Date(h.date).toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric' })}
                 · <strong style="color:var(--success);">${h.volume.toFixed(1)} kg</strong></p>
             </div>
-            <button class="btn-action btn-delete" onclick="confirmDeleteHistory('${h.id}')" style="flex: 0 0 auto;">
+            <button class="btn-action btn-delete" onclick="openDeleteOptions('${h.id}')" style="flex: 0 0 auto;" title="Excluir Treino Inteiro">
                 <i class="fa-solid fa-trash-can"></i>
             </button>`;
         list.appendChild(div);
     });
 }
 
-// Função que abre o menu de opções de exclusão
-function openDeleteOptions(sessionId, exName = null, setIdx = null) {
-    let title = 'Excluir Registro';
-    let message = 'O que você deseja excluir?';
-    
-    // Cria botões dinâmicos no modal de confirmação
-    const confirmDialog = document.getElementById('confirm-dialog');
-    const actionsDiv = confirmDialog.querySelector('.confirm-dialog-actions');
-    
-    // Reseta os botões originais para não acumular
-    actionsDiv.innerHTML = `
-        <button class="btn-ghost" onclick="cancelConfirm()">Cancelar</button>
-    `;
-
-    // Se passou um exercício e uma série específica
-    if (exName !== null && setIdx !== null) {
-        actionsDiv.innerHTML += `<button class="btn-danger" onclick="deleteSpecificSet('${sessionId}', '${exName}', ${setIdx})">Só a Série</button>`;
-        actionsDiv.innerHTML += `<button class="btn-danger" onclick="deleteSpecificExercise('${sessionId}', '${exName}')">Todo o Exercício</button>`;
-        message = `Você está no exercício <strong>${exName}</strong>.<br>Deseja apagar apenas esta série ou todas as séries deste exercício?`;
-    } else {
-        // Se não passou série, é exclusão do treino inteiro
-        actionsDiv.innerHTML += `<button class="btn-danger" onclick="deleteWholeWorkout('${sessionId}')">Treino Inteiro</button>`;
-    }
-
-    document.getElementById('confirm-title').innerText = title;
-    document.getElementById('confirm-message').innerHTML = message;
-    document.getElementById('confirm-icon').innerText = '🗑️';
-    document.getElementById('confirm-dialog').classList.remove('hidden');
-}
-
-// 1. Abre o modal perguntando o que quer excluir
-function openDeleteOptions(sessionId, exName = null, setIdx = null) {
-    const confirmDialog = document.getElementById('confirm-dialog');
-    const actionsDiv = confirmDialog.querySelector('.confirm-dialog-actions');
-    
-    actionsDiv.innerHTML = `<button class="btn-ghost" onclick="cancelConfirm()">Cancelar</button>`;
-
-    if (exName !== null && setIdx !== null) {
-        // Se clicou na Evolução, mostra as 3 opções
-        actionsDiv.innerHTML += `<button class="btn-danger" onclick="deleteSpecificSet('${sessionId}', ${setIdx})">Série</button>`;
-        actionsDiv.innerHTML += `<button class="btn-danger" onclick="deleteSpecificExercise('${sessionId}', '${exName}')">Exercício</button>`;
-        actionsDiv.innerHTML += `<button class="btn-danger" onclick="deleteWholeWorkout('${sessionId}')">Treino Inteiro</button>`;
-        
-        document.getElementById('confirm-title').innerText = 'O que excluir?';
-        document.getElementById('confirm-message').innerHTML = `Você está no exercício <strong>${exName}</strong>.<br>Escolha o nível de exclusão:`;
-    } else {
-        // Se clicou no Histórico, só pode apagar o treino inteiro
-        actionsDiv.innerHTML += `<button class="btn-danger" onclick="deleteWholeWorkout('${sessionId}')">Excluir Treino</button>`;
-        document.getElementById('confirm-title').innerText = 'Excluir Treino';
-        document.getElementById('confirm-message').innerText = 'Tem certeza que deseja apagar este treino inteiro do histórico?';
-    }
-
-    document.getElementById('confirm-icon').innerText = '🗑️';
-    document.getElementById('confirm-dialog').classList.remove('hidden');
-}
-
-// 2. Excluir apenas a Série
-async function deleteSpecificSet(sessionId, setIdx) {
-    document.getElementById('confirm-dialog').classList.add('hidden');
-    const session = DB.history.find(h => h.id === sessionId);
-    if (!session) return;
-
-    // Remove a série pelo índice exato
-    session.sets.splice(setIdx, 1);
-    
-    // Se o array de sets ficou vazio, apaga o treino inteiro
-    if (session.sets.length === 0) {
-        return deleteWholeWorkout(sessionId);
-    }
-
-    // Recalcula o volume
-    session.volume = session.sets.reduce((acc, s) => acc + (s.actualReps * s.actualWeight), 0);
-
-    await saveUpdatedHistory(session);
-    showToast('Série excluída!', 'success');
-}
-
-// 3. Excluir um Exercício Inteiro (remove todas as séries dele)
-async function deleteSpecificExercise(sessionId, exName) {
-    document.getElementById('confirm-dialog').classList.add('hidden');
-    const session = DB.history.find(h => h.id === sessionId);
-    if (!session) return;
-
-    session.sets = session.sets.filter(s => s.exName !== exName);
-    
-    if (session.sets.length === 0) {
-        return deleteWholeWorkout(sessionId);
-    }
-
-    session.volume = session.sets.reduce((acc, s) => acc + (s.actualReps * s.actualWeight), 0);
-    await saveUpdatedHistory(session);
-    showToast(`Exercício excluído!`, 'success');
-}
-
-// 4. Excluir o Treino Inteiro (da aba histórico ou evolução)
-async function deleteWholeWorkout(sessionId) {
-    document.getElementById('confirm-dialog').classList.add('hidden');
-    try {
-        await authFetch(`${API}/history/${sessionId}`, { method: 'DELETE' });
-        DB.history = DB.history.filter(h => h.id !== sessionId);
-        renderHistory();
-        loadExerciseProgression(document.getElementById('progression-select')?.value);
-        showToast('Treino excluído do histórico!', 'success');
-    } catch (e) {
-        showToast('Erro ao excluir treino.', 'error');
-    }
-}
-
-// 5. Salva a atualização no banco (PUT)
-async function saveUpdatedHistory(session) {
-    try {
-        await authFetch(`${API}/history/${session.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ volume: session.volume, sets: session.sets })
-        });
-        
-        // Atualiza a tela de evolução e o histórico
-        renderHistory();
-        loadExerciseProgression(document.getElementById('progression-select')?.value);
-    } catch (e) {
-        showToast('Erro ao atualizar o banco.', 'error');
-        console.error(e);
-    }
-}
 // =============================================
 // === VÍDEO INLINE ===
 // =============================================
@@ -970,7 +845,6 @@ function loadExerciseProgression(exName) {
     if (!exName) { document.getElementById('progression-stats').classList.add('hidden'); return; }
     
     const records = [];
-    // Agora pegamos o ID da sessão e o index exato da série no array
     DB.history.forEach(session => {
         session.sets.forEach((set, idx) => {
             if (set.exName === exName && set.actualWeight) {
@@ -997,102 +871,23 @@ function loadExerciseProgression(exName) {
     document.getElementById('progression-stats').classList.remove('hidden');
     
     const list = document.getElementById('progression-list');
-    
-    // Desenha a lista com o botão passando os dados corretos
     list.innerHTML = records.slice().reverse().map(r => {
         const isRec = r.weight === Math.max(...weights);
-        return `<div class="prog-item" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px; padding: 12px; background: var(--bg-card); border-radius: 8px;">
+        return `<div class="prog-item" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px; padding: 12px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border);">
             <div class="prog-date">
                 <span class="day" style="font-weight:700; font-size:14px;">${r.date}</span>
-                <span class="reps" style="font-size:12px; color:var(--text-3);">${r.reps} reps</span>
+                <span class="reps" style="font-size:12px; color:var(--text-3); display:block;">${r.reps} reps</span>
             </div>
             <div style="display:flex; align-items:center; gap: 8px;">
                 <span class="prog-weight" style="color:var(--success); font-weight:700;">${r.weight} kg</span>
                 ${isRec ? '<span class="prog-record" style="font-size:10px; background:var(--accent); color:#fff; padding:2px 6px; border-radius:10px;"><i class="fa-solid fa-trophy"></i> Recorde</span>' : ''}
-                <button class="btn-action btn-delete" onclick="openDeleteOptions('${r.sessionId}', '${exName}', ${r.setIdx})" style="padding: 6px 10px;" title="Excluir">
+                <button class="btn-action btn-delete" onclick="openDeleteOptions('${r.sessionId}', '${exName}', ${r.setIdx})" style="padding: 6px 10px;">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
             </div>
         </div>`;
     }).join('');
 
-    // O resto do código do gráfico (Chart.js) continua igual...
-    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6366f1';
-    const isLight = document.body.classList.contains('light');
-    const tickColor = isLight ? '#71717a' : '#52525b';
-    if (progressionChart) progressionChart.destroy();
-    
-    progressionChart = new Chart(document.getElementById('progressionChart').getContext('2d'), {
-        type: 'line',
-        data: {
-            labels: records.map(r => r.date),
-            datasets: [{
-                label: 'Carga (kg)', data: weights,
-                borderColor: accent, backgroundColor: `${accent}18`,
-                borderWidth: 2.5, fill: true, tension: 0.3,
-                pointBackgroundColor: accent, pointRadius: 3
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { labels: { color: isLight ? '#18181b' : '#f4f4f5', font: { family: 'DM Sans' } } } },
-            scales: {
-                y: { beginAtZero: false, grid: { color: 'rgba(128,128,128,0.08)' }, ticks: { color: tickColor, font: { family: 'DM Sans', size: 11 } } },
-                x: { grid: { display: false }, ticks: { color: tickColor, font: { family: 'DM Sans', size: 11 } } }
-            }
-        }
-    });
-}function loadExerciseProgression(exName) {
-    if (!exName) { document.getElementById('progression-stats').classList.add('hidden'); return; }
-    
-    const records = [];
-    // Agora pegamos o ID da sessão e o index exato da série no array
-    DB.history.forEach(session => {
-        session.sets.forEach((set, idx) => {
-            if (set.exName === exName && set.actualWeight) {
-                records.push({ 
-                    sessionId: session.id, 
-                    setIdx: idx, 
-                    date: new Date(session.date).toLocaleDateString('pt-BR'), 
-                    weight: set.actualWeight, 
-                    reps: set.actualReps 
-                });
-            }
-        });
-    });
-
-    if (records.length === 0) {
-        document.getElementById('progression-stats').classList.add('hidden');
-        document.getElementById('progression-list').innerHTML = '<p class="subtitle">Sem dados para este exercício.</p>';
-        return;
-    }
-
-    const weights = records.map(r => r.weight);
-    document.getElementById('prog-start-weight').innerText = weights[0] + ' kg';
-    document.getElementById('prog-max-weight').innerText   = Math.max(...weights) + ' kg';
-    document.getElementById('progression-stats').classList.remove('hidden');
-    
-    const list = document.getElementById('progression-list');
-    
-    // Desenha a lista com o botão passando os dados corretos
-    list.innerHTML = records.slice().reverse().map(r => {
-        const isRec = r.weight === Math.max(...weights);
-        return `<div class="prog-item" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px; padding: 12px; background: var(--bg-card); border-radius: 8px;">
-            <div class="prog-date">
-                <span class="day" style="font-weight:700; font-size:14px;">${r.date}</span>
-                <span class="reps" style="font-size:12px; color:var(--text-3);">${r.reps} reps</span>
-            </div>
-            <div style="display:flex; align-items:center; gap: 8px;">
-                <span class="prog-weight" style="color:var(--success); font-weight:700;">${r.weight} kg</span>
-                ${isRec ? '<span class="prog-record" style="font-size:10px; background:var(--accent); color:#fff; padding:2px 6px; border-radius:10px;"><i class="fa-solid fa-trophy"></i> Recorde</span>' : ''}
-                <button class="btn-action btn-delete" onclick="openDeleteOptions('${r.sessionId}', '${exName}', ${r.setIdx})" style="padding: 6px 10px;" title="Excluir">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>
-            </div>
-        </div>`;
-    }).join('');
-
-    // O resto do código do gráfico (Chart.js) continua igual...
     const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6366f1';
     const isLight = document.body.classList.contains('light');
     const tickColor = isLight ? '#71717a' : '#52525b';
@@ -1119,6 +914,7 @@ function loadExerciseProgression(exName) {
         }
     });
 }
+
 // =============================================
 // === CALCULADORA DE IMC ===
 // =============================================
@@ -2492,6 +2288,96 @@ async function adminSendMessage(clientId) {
     } catch (e) { showToast('Erro de conexão.', 'error'); }
     setButtonLoading(btn, false);
 }
+
+// =============================================
+// === SISTEMA DE EXCLUSÃO INTELIGENTE ===
+// =============================================
+function openDeleteOptions(sessionId, exName = null, setIdx = null) {
+    const confirmDialog = document.getElementById('confirm-dialog');
+    const actionsDiv = confirmDialog.querySelector('.confirm-dialog-actions');
+    
+    actionsDiv.innerHTML = `<button class="btn-ghost" onclick="cancelConfirm()">Cancelar</button>`;
+
+    if (exName !== null && setIdx !== null) {
+        // Na Evolução: mostra opções detalhadas
+        actionsDiv.innerHTML += `<button class="btn-danger" style="background: #ef4444; color: #fff; border: none; padding: 8px 12px; font-size:12px;" onclick="deleteSet('${sessionId}', ${setIdx})">Só a Série</button>`;
+        actionsDiv.innerHTML += `<button class="btn-danger" style="background: #b91c1c; color: #fff; border: none; padding: 8px 12px; font-size:12px;" onclick="deleteExercise('${sessionId}', '${exName}')">Todo o Exercício</button>`;
+        actionsDiv.innerHTML += `<button class="btn-danger" style="background: #7f1d1d; color: #fff; border: none; padding: 8px 12px; font-size:12px;" onclick="deleteWorkout('${sessionId}')">Treino Inteiro</button>`;
+        
+        document.getElementById('confirm-title').innerText = 'O que excluir?';
+        document.getElementById('confirm-message').innerHTML = `Exercício: <strong>${exName}</strong><br>Escolha o nível de exclusão:`;
+    } else {
+        // No Histórico: só apaga o treino todo
+        actionsDiv.innerHTML += `<button class="btn-danger" style="background: #ef4444; color: #fff; border: none;" onclick="deleteWorkout('${sessionId}')">Excluir Treino</button>`;
+        document.getElementById('confirm-title').innerText = 'Excluir Treino';
+        document.getElementById('confirm-message').innerText = 'Tem certeza que deseja apagar este treino inteiro?';
+    }
+
+    document.getElementById('confirm-icon').innerText = '🗑️';
+    confirmDialog.classList.remove('hidden');
+}
+
+async function deleteSet(sessionId, setIdx) {
+    cancelConfirm();
+    const session = DB.history.find(h => h.id === sessionId);
+    if (!session) return;
+
+    session.sets.splice(setIdx, 1); // Remove a série específica
+    
+    if (session.sets.length === 0) return deleteWorkout(sessionId); // Se era a única, apaga o treino
+
+    session.volume = session.sets.reduce((acc, s) => acc + (s.actualReps * s.actualWeight), 0);
+    await saveUpdatedHistory(session);
+}
+
+async function deleteExercise(sessionId, exName) {
+    cancelConfirm();
+    const session = DB.history.find(h => h.id === sessionId);
+    if (!session) return;
+
+    session.sets = session.sets.filter(s => s.exName !== exName); // Remove todas as séries do exercício
+    
+    if (session.sets.length === 0) return deleteWorkout(sessionId);
+
+    session.volume = session.sets.reduce((acc, s) => acc + (s.actualReps * s.actualWeight), 0);
+    await saveUpdatedHistory(session);
+}
+
+async function deleteWorkout(sessionId) {
+    cancelConfirm();
+    try {
+        await authFetch(`${API}/history/${sessionId}`, { method: 'DELETE' });
+        DB.history = DB.history.filter(h => h.id !== sessionId);
+        renderHistory();
+        
+        const select = document.getElementById('progression-select');
+        if (select && select.value) loadExerciseProgression(select.value);
+        
+        showToast('Treino excluído!', 'success');
+    } catch (e) {
+        showToast('Erro ao excluir treino.', 'error');
+    }
+}
+
+async function saveUpdatedHistory(session) {
+    try {
+        await authFetch(`${API}/history/${session.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ volume: session.volume, sets: session.sets })
+        });
+        
+        renderHistory();
+        const select = document.getElementById('progression-select');
+        if (select && select.value) loadExerciseProgression(select.value);
+        
+        showToast('Registro atualizado!', 'success');
+    } catch (e) {
+        showToast('Erro ao salvar atualização.', 'error');
+        console.error(e);
+    }
+}
+
 
 applyTheme();
 
