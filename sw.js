@@ -2,7 +2,7 @@
 // Service Worker — AcadeMax PWA
 // Estratégia: cache-first para assets estáticos, network-first para HTML
 // =============================================
-const CACHE_NAME = 'academax-v14';
+const CACHE_NAME = 'academax-v15';
 const ASSETS = [
   '/',
   '/index.html',
