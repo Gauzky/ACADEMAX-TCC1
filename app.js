@@ -282,7 +282,6 @@ function renderWorkouts() {
             </div>
             <div class="workout-actions">
                 <button class="btn-action btn-edit" onclick="editWorkout('${w.id}')"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
-            // Encontre isso na função renderWorkouts:
 <button class="btn-action btn-delete" style="flex: 0;" onclick="confirmDeleteWorkout('${w.id}')"><i class="fa-solid fa-trash-can"></i></button>
                 <button class="btn-action btn-start" onclick="startWorkout('${w.id}')"><i class="fa-solid fa-play"></i> Iniciar</button>
             </div>`;
