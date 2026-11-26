@@ -458,6 +458,25 @@ app.get('/api/history/:userId', authMiddleware, async (req, res) => {
     res.json(sessions.map(s => ({ ...s, sets: JSON.parse(s.sets), workoutName: s.workout ? s.workout.name : 'Treino Removido' })));
 });
 
+// === EXCLUIR REGISTRO DO HISTÓRICO ===
+app.delete('/api/history/:id', authMiddleware, async (req, res) => {
+    try {
+        const session = await prisma.workoutSession.findUnique({ where: { id: req.params.id } });
+        
+        if (!session) return res.status(404).json({ error: 'Registro não encontrado' });
+        
+        // Só permite excluir se for o dono do treino ou um admin
+        if (session.userId !== req.user.id && !req.user.isAdmin) {
+            return res.status(403).json({ error: 'Acesso negado' });
+        }
+
+        await prisma.workoutSession.delete({ where: { id: req.params.id } });
+        res.json({ message: 'Registro excluído com sucesso' });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao excluir registro' });
+    }
+});
+
 // === VERIFICAÇÃO DE E-MAIL NO CADASTRO ===
 const registerCodes = new Map();
 

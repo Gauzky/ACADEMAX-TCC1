@@ -302,13 +302,33 @@ function renderHistory() {
     DB.history.slice().reverse().forEach(h => {
         const div = document.createElement('div');
         div.className = 'workout-item';
+        div.style.display = 'flex';
+        div.style.justifyContent = 'space-between';
+        div.style.alignItems = 'center';
+        
         div.innerHTML = `
             <div class="workout-info">
                 <h3>${h.workoutName}</h3>
                 <p>${new Date(h.date).toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric' })}
                 · <strong style="color:var(--success);">${h.volume.toFixed(1)} kg</strong></p>
-            </div>`;
+            </div>
+            <button class="btn-action btn-delete" onclick="confirmDeleteHistory('${h.id}')" style="flex: 0 0 auto;">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>`;
         list.appendChild(div);
+    });
+}
+
+function confirmDeleteHistory(id) {
+    showConfirm('Excluir Registro', 'Tem certeza que deseja excluir este treino do seu histórico? O gráfico de evolução será atualizado.', '🗑️', async () => {
+        try {
+            await authFetch(`${API}/history/${id}`, { method: 'DELETE' });
+            DB.history = DB.history.filter(h => h.id !== id); // Remove da memória
+            renderHistory(); // Atualiza a tela
+            showToast('Registro excluído!', 'success');
+        } catch (e) {
+            showToast('Erro ao excluir registro.', 'error');
+        }
     });
 }
 
@@ -856,8 +876,8 @@ function loadExerciseProgression(exName) {
     const records = [];
     DB.history.forEach(s => s.sets.forEach(set => {
         if (set.exName === exName && set.actualWeight)
-            records.push({ date: new Date(s.date).toLocaleDateString('pt-BR'), weight: set.actualWeight, reps: set.actualReps });
-    }));
+           records.push({ id: s.id, date: new Date(s.date).toLocaleDateString('pt-BR'), weight: set.actualWeight, reps: set.actualReps });
+       }));
     if (records.length === 0) {
         document.getElementById('progression-stats').classList.add('hidden');
         document.getElementById('progression-list').innerHTML = '<p class="subtitle">Sem dados para este exercício.</p>';
@@ -868,16 +888,19 @@ function loadExerciseProgression(exName) {
     document.getElementById('prog-max-weight').innerText   = Math.max(...weights) + ' kg';
     document.getElementById('progression-stats').classList.remove('hidden');
     const list = document.getElementById('progression-list');
-    list.innerHTML = records.slice().reverse().map(r => {
+       list.innerHTML = records.slice().reverse().map(r => {
         const isRec = r.weight === Math.max(...weights);
-        return `<div class="prog-item">
+        return `<div class="prog-item" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
             <div class="prog-date">
                 <span class="day">${r.date}</span>
                 <span class="reps">${r.reps} reps</span>
             </div>
-            <div style="display:flex;align-items:center;">
+            <div style="display:flex; align-items:center; gap: 10px;">
                 <span class="prog-weight">${r.weight} kg</span>
                 ${isRec ? '<span class="prog-record"><i class="fa-solid fa-trophy"></i> Recorde</span>' : ''}
+                <button class="btn-action btn-delete" onclick="confirmDeleteHistory('${r.id}')" style="padding: 6px 10px;" title="Excluir este treino">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
             </div>
         </div>`;
     }).join('');
