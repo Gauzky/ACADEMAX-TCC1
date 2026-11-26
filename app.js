@@ -2312,11 +2312,16 @@ async function adminSendMessage(clientId) {
 // =============================================
 // === SISTEMA DE EXCLUSÃO INTELIGENTE ===
 // =============================================
+// =============================================
+// === SISTEMA DE EXCLUSÃO (DEFINITIVO) ===
+// =============================================
+
 function openDeleteOptions(sessionId, exName = null, setIdx = null) {
     const confirmDialog = document.getElementById('confirm-dialog');
     const actionsDiv = confirmDialog.querySelector('.confirm-dialog-actions');
     
-    // Deixa os botões em coluna (um embaixo do outro) com espaçamento
+    // Limpa os botões antigos e aplica o estilo de coluna
+    actionsDiv.innerHTML = '';
     actionsDiv.style.display = 'flex';
     actionsDiv.style.flexDirection = 'column';
     actionsDiv.style.gap = '10px';
@@ -2327,8 +2332,8 @@ function openDeleteOptions(sessionId, exName = null, setIdx = null) {
         
         actionsDiv.innerHTML = `
             <button class="btn-danger" style="background: #ef4444; color: #fff; border: none; padding: 12px;" onclick="deleteSet('${sessionId}', ${setIdx})">Só a Série</button>
-            <button class="btn-danger" style="background: #d97706; color: #fff; border: none; padding: 12px;" onclick="deleteExercise('${sessionId}', '${exName}')">Todo o Exercício</button>
-            <button class="btn-danger" style="background: #b91c1c; color: #fff; border: none; padding: 12px;" onclick="deleteWorkout('${sessionId}')">Treino Inteiro</button>
+            <button class="btn-danger" style="background: #f59e0b; color: #fff; border: none; padding: 12px;" onclick="deleteExercise('${sessionId}', '${exName}')">Todo o Exercício</button>
+            <button class="btn-danger" style="background: #b91c1c; color: #fff; border: none; padding: 12px;" onclick="deleteHistorySession('${sessionId}')">Treino Inteiro</button>
             <button class="btn-ghost" style="padding: 12px;" onclick="cancelConfirm()">Cancelar</button>
         `;
     } else {
@@ -2336,7 +2341,7 @@ function openDeleteOptions(sessionId, exName = null, setIdx = null) {
         document.getElementById('confirm-message').innerText = 'Tem certeza que deseja apagar este treino inteiro?';
         
         actionsDiv.innerHTML = `
-            <button class="btn-danger" style="background: #ef4444; color: #fff; border: none; padding: 12px;" onclick="deleteWorkout('${sessionId}')">Excluir Treino</button>
+            <button class="btn-danger" style="background: #ef4444; color: #fff; border: none; padding: 12px;" onclick="deleteHistorySession('${sessionId}')">Excluir Treino</button>
             <button class="btn-ghost" style="padding: 12px;" onclick="cancelConfirm()">Cancelar</button>
         `;
     }
@@ -2345,19 +2350,21 @@ function openDeleteOptions(sessionId, exName = null, setIdx = null) {
     confirmDialog.classList.remove('hidden');
 }
 
+// 1. Excluir Série
 async function deleteSet(sessionId, setIdx) {
     cancelConfirm();
     const session = DB.history.find(h => h.id === sessionId);
     if (!session) return;
 
-    session.sets.splice(setIdx, 1); // Remove a série específica
+    session.sets.splice(setIdx, 1); // Remove 1 série
     
-    if (session.sets.length === 0) return deleteWorkout(sessionId); // Se era a única, apaga o treino
+    if (session.sets.length === 0) return deleteHistorySession(sessionId); // Se zerou, apaga tudo
 
     session.volume = session.sets.reduce((acc, s) => acc + (s.actualReps * s.actualWeight), 0);
     await saveUpdatedHistory(session);
 }
 
+// 2. Excluir Exercício Inteiro
 async function deleteExercise(sessionId, exName) {
     cancelConfirm();
     const session = DB.history.find(h => h.id === sessionId);
@@ -2365,13 +2372,13 @@ async function deleteExercise(sessionId, exName) {
 
     session.sets = session.sets.filter(s => s.exName !== exName); // Remove todas as séries do exercício
     
-    if (session.sets.length === 0) return deleteWorkout(sessionId);
+    if (session.sets.length === 0) return deleteHistorySession(sessionId);
 
     session.volume = session.sets.reduce((acc, s) => acc + (s.actualReps * s.actualWeight), 0);
     await saveUpdatedHistory(session);
 }
 
-// 3. Deletar o Treino Inteiro
+// 3. Excluir Treino Inteiro
 async function deleteHistorySession(sessionId) {
     cancelConfirm();
     try {
@@ -2381,11 +2388,12 @@ async function deleteHistorySession(sessionId) {
         showToast('Treino excluído com sucesso!', 'success');
         setTimeout(() => { window.location.reload(); }, 1000);
     } catch (e) {
-        showToast('Erro ao excluir treino.', 'error');
+        showToast('Erro ao excluir treino do servidor.', 'error');
+        console.error(e);
     }
 }
 
-// 4. Salvar alterações no banco (PUT)
+// 4. Salvar Atualização (PUT)
 async function saveUpdatedHistory(session) {
     try {
         await authFetch(`${API}/history/${session.id}`, {
@@ -2395,14 +2403,9 @@ async function saveUpdatedHistory(session) {
         });
         
         showToast('Registro atualizado!', 'success');
-        
-        // 👇 O SEGREDO DO AUTO-RELOAD AQUI 👇
-        setTimeout(() => {
-            window.location.reload(); // Recarrega a página após 1 segundo
-        }, 1000);
-
+        setTimeout(() => { window.location.reload(); }, 1000);
     } catch (e) {
-        showToast('Erro ao salvar atualização.', 'error');
+        showToast('Erro ao salvar atualização no banco.', 'error');
         console.error(e);
     }
 }
