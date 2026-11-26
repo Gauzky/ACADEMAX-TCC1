@@ -2296,21 +2296,29 @@ function openDeleteOptions(sessionId, exName = null, setIdx = null) {
     const confirmDialog = document.getElementById('confirm-dialog');
     const actionsDiv = confirmDialog.querySelector('.confirm-dialog-actions');
     
-    actionsDiv.innerHTML = `<button class="btn-ghost" onclick="cancelConfirm()">Cancelar</button>`;
+    // Deixa os botões em coluna (um embaixo do outro) com espaçamento
+    actionsDiv.style.display = 'flex';
+    actionsDiv.style.flexDirection = 'column';
+    actionsDiv.style.gap = '10px';
 
     if (exName !== null && setIdx !== null) {
-        // Na Evolução: mostra opções detalhadas
-        actionsDiv.innerHTML += `<button class="btn-danger" style="background: #ef4444; color: #fff; border: none; padding: 8px 12px; font-size:12px;" onclick="deleteSet('${sessionId}', ${setIdx})">Só a Série</button>`;
-        actionsDiv.innerHTML += `<button class="btn-danger" style="background: #b91c1c; color: #fff; border: none; padding: 8px 12px; font-size:12px;" onclick="deleteExercise('${sessionId}', '${exName}')">Todo o Exercício</button>`;
-        actionsDiv.innerHTML += `<button class="btn-danger" style="background: #7f1d1d; color: #fff; border: none; padding: 8px 12px; font-size:12px;" onclick="deleteWorkout('${sessionId}')">Treino Inteiro</button>`;
-        
         document.getElementById('confirm-title').innerText = 'O que excluir?';
         document.getElementById('confirm-message').innerHTML = `Exercício: <strong>${exName}</strong><br>Escolha o nível de exclusão:`;
+        
+        actionsDiv.innerHTML = `
+            <button class="btn-danger" style="background: #ef4444; color: #fff; border: none; padding: 12px;" onclick="deleteSet('${sessionId}', ${setIdx})">Só a Série</button>
+            <button class="btn-danger" style="background: #d97706; color: #fff; border: none; padding: 12px;" onclick="deleteExercise('${sessionId}', '${exName}')">Todo o Exercício</button>
+            <button class="btn-danger" style="background: #b91c1c; color: #fff; border: none; padding: 12px;" onclick="deleteWorkout('${sessionId}')">Treino Inteiro</button>
+            <button class="btn-ghost" style="padding: 12px;" onclick="cancelConfirm()">Cancelar</button>
+        `;
     } else {
-        // No Histórico: só apaga o treino todo
-        actionsDiv.innerHTML += `<button class="btn-danger" style="background: #ef4444; color: #fff; border: none;" onclick="deleteWorkout('${sessionId}')">Excluir Treino</button>`;
         document.getElementById('confirm-title').innerText = 'Excluir Treino';
         document.getElementById('confirm-message').innerText = 'Tem certeza que deseja apagar este treino inteiro?';
+        
+        actionsDiv.innerHTML = `
+            <button class="btn-danger" style="background: #ef4444; color: #fff; border: none; padding: 12px;" onclick="deleteWorkout('${sessionId}')">Excluir Treino</button>
+            <button class="btn-ghost" style="padding: 12px;" onclick="cancelConfirm()">Cancelar</button>
+        `;
     }
 
     document.getElementById('confirm-icon').innerText = '🗑️';
@@ -2343,22 +2351,26 @@ async function deleteExercise(sessionId, exName) {
     await saveUpdatedHistory(session);
 }
 
+// 3. Deletar o Treino Inteiro
 async function deleteWorkout(sessionId) {
     cancelConfirm();
     try {
         await authFetch(`${API}/history/${sessionId}`, { method: 'DELETE' });
         DB.history = DB.history.filter(h => h.id !== sessionId);
-        renderHistory();
         
-        const select = document.getElementById('progression-select');
-        if (select && select.value) loadExerciseProgression(select.value);
+        showToast('Treino excluído com sucesso!', 'success');
         
-        showToast('Treino excluído!', 'success');
+        // 👇 O SEGREDO DO AUTO-RELOAD AQUI 👇
+        setTimeout(() => {
+            window.location.reload(); // Recarrega a página após 1 segundo
+        }, 1000);
+
     } catch (e) {
         showToast('Erro ao excluir treino.', 'error');
     }
 }
 
+// 4. Salvar alterações no banco (PUT)
 async function saveUpdatedHistory(session) {
     try {
         await authFetch(`${API}/history/${session.id}`, {
@@ -2367,11 +2379,13 @@ async function saveUpdatedHistory(session) {
             body: JSON.stringify({ volume: session.volume, sets: session.sets })
         });
         
-        renderHistory();
-        const select = document.getElementById('progression-select');
-        if (select && select.value) loadExerciseProgression(select.value);
-        
         showToast('Registro atualizado!', 'success');
+        
+        // 👇 O SEGREDO DO AUTO-RELOAD AQUI 👇
+        setTimeout(() => {
+            window.location.reload(); // Recarrega a página após 1 segundo
+        }, 1000);
+
     } catch (e) {
         showToast('Erro ao salvar atualização.', 'error');
         console.error(e);
