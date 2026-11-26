@@ -282,7 +282,8 @@ function renderWorkouts() {
             </div>
             <div class="workout-actions">
                 <button class="btn-action btn-edit" onclick="editWorkout('${w.id}')"><i class="fa-solid fa-pen-to-square"></i> Editar</button>
-                <button class="btn-action btn-delete" onclick="confirmDeleteWorkout('${w.id}')"><i class="fa-solid fa-trash-can"></i></button>
+            // Encontre isso na função renderWorkouts:
+<button class="btn-action btn-delete" style="flex: 0;" onclick="confirmDeleteWorkout('${w.id}')"><i class="fa-solid fa-trash-can"></i></button>
                 <button class="btn-action btn-start" onclick="startWorkout('${w.id}')"><i class="fa-solid fa-play"></i> Iniciar</button>
             </div>`;
         list.appendChild(div);
@@ -2352,19 +2353,14 @@ async function deleteExercise(sessionId, exName) {
 }
 
 // 3. Deletar o Treino Inteiro
-async function deleteWorkout(sessionId) {
+async function deleteHistorySession(sessionId) {
     cancelConfirm();
     try {
         await authFetch(`${API}/history/${sessionId}`, { method: 'DELETE' });
         DB.history = DB.history.filter(h => h.id !== sessionId);
         
         showToast('Treino excluído com sucesso!', 'success');
-        
-        // 👇 O SEGREDO DO AUTO-RELOAD AQUI 👇
-        setTimeout(() => {
-            window.location.reload(); // Recarrega a página após 1 segundo
-        }, 1000);
-
+        setTimeout(() => { window.location.reload(); }, 1000);
     } catch (e) {
         showToast('Erro ao excluir treino.', 'error');
     }
