@@ -1,5 +1,9 @@
 {
   "appId": "com.academax.app",
   "appName": "AcadeMax",
-  "webDir": "www"
+  "webDir": "www",
+  "server": {
+    "url": "https://academaxx.com.br",
+    "cleartext": true
+  }
 }
