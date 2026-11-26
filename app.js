@@ -319,17 +319,105 @@ function renderHistory() {
     });
 }
 
-function confirmDeleteHistory(id) {
-    showConfirm('Excluir Registro', 'Tem certeza que deseja excluir este treino do seu histórico? O gráfico de evolução será atualizado.', '🗑️', async () => {
-        try {
-            await authFetch(`${API}/history/${id}`, { method: 'DELETE' });
-            DB.history = DB.history.filter(h => h.id !== id); // Remove da memória
-            renderHistory(); // Atualiza a tela
-            showToast('Registro excluído!', 'success');
-        } catch (e) {
-            showToast('Erro ao excluir registro.', 'error');
+// Função que abre o menu de opções de exclusão
+function openDeleteOptions(sessionId, exName = null, setIdx = null) {
+    let title = 'Excluir Registro';
+    let message = 'O que você deseja excluir?';
+    
+    // Cria botões dinâmicos no modal de confirmação
+    const confirmDialog = document.getElementById('confirm-dialog');
+    const actionsDiv = confirmDialog.querySelector('.confirm-dialog-actions');
+    
+    // Reseta os botões originais para não acumular
+    actionsDiv.innerHTML = `
+        <button class="btn-ghost" onclick="cancelConfirm()">Cancelar</button>
+    `;
+
+    // Se passou um exercício e uma série específica
+    if (exName !== null && setIdx !== null) {
+        actionsDiv.innerHTML += `<button class="btn-danger" onclick="deleteSpecificSet('${sessionId}', '${exName}', ${setIdx})">Só a Série</button>`;
+        actionsDiv.innerHTML += `<button class="btn-danger" onclick="deleteSpecificExercise('${sessionId}', '${exName}')">Todo o Exercício</button>`;
+        message = `Você está no exercício <strong>${exName}</strong>.<br>Deseja apagar apenas esta série ou todas as séries deste exercício?`;
+    } else {
+        // Se não passou série, é exclusão do treino inteiro
+        actionsDiv.innerHTML += `<button class="btn-danger" onclick="deleteWholeWorkout('${sessionId}')">Treino Inteiro</button>`;
+    }
+
+    document.getElementById('confirm-title').innerText = title;
+    document.getElementById('confirm-message').innerHTML = message;
+    document.getElementById('confirm-icon').innerText = '🗑️';
+    document.getElementById('confirm-dialog').classList.remove('hidden');
+}
+
+// 1. Excluir apenas a Série
+async function deleteSpecificSet(sessionId, exName, setIdx) {
+    document.getElementById('confirm-dialog').classList.add('hidden');
+    const session = DB.history.find(h => h.id === sessionId);
+    if (!session) return;
+
+    // Remove a série específica
+    const ex = session.sets.find(s => s.exName === exName);
+    if (ex) {
+        session.sets.splice(setIdx, 1);
+        // Se o exercício ficar sem séries, remove ele todo
+        const stillHasSets = session.sets.some(s => s.exName === exName);
+        if (!stillHasSets) {
+            session.sets = session.sets.filter(s => s.exName !== exName);
         }
-    });
+    }
+
+    // Recalcula o volume do treino
+    session.volume = session.sets.reduce((acc, s) => acc + (s.actualReps * s.actualWeight), 0);
+
+    await saveUpdatedHistory(session);
+    showToast('Série excluída!', 'success');
+}
+
+// 2. Excluir um Exercício Inteiro
+async function deleteSpecificExercise(sessionId, exName) {
+    document.getElementById('confirm-dialog').classList.add('hidden');
+    const session = DB.history.find(h => h.id === sessionId);
+    if (!session) return;
+
+    // Remove todas as séries do exercício
+    session.sets = session.sets.filter(s => s.exName !== exName);
+    
+    // Recalcula o volume
+    session.volume = session.sets.reduce((acc, s) => acc + (s.actualReps * s.actualWeight), 0);
+
+    await saveUpdatedHistory(session);
+    showToast(`Exercício ${exName} excluído!`, 'success');
+}
+
+// 3. Excluir o Treino Inteiro
+async function deleteWholeWorkout(sessionId) {
+    document.getElementById('confirm-dialog').classList.add('hidden');
+    try {
+        await authFetch(`${API}/history/${sessionId}`, { method: 'DELETE' });
+        DB.history = DB.history.filter(h => h.id !== sessionId);
+        renderHistory();
+        loadExerciseProgression(document.getElementById('progression-select')?.value);
+        showToast('Treino inteiro excluído!', 'success');
+    } catch (e) {
+        showToast('Erro ao excluir treino.', 'error');
+    }
+}
+
+// Função auxiliar para salvar a atualização no banco
+async function saveUpdatedHistory(session) {
+    try {
+        // Usamos PUT para atualizar o histórico no backend
+        await authFetch(`${API}/history/${session.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(session)
+        });
+        // Atualiza a tela e o gráfico
+        renderHistory();
+        loadExerciseProgression(document.getElementById('progression-select')?.value);
+    } catch (e) {
+        showToast('Erro ao atualizar o banco.', 'error');
+    }
 }
 
 function confirmDeleteWorkout(id) {
@@ -888,8 +976,17 @@ function loadExerciseProgression(exName) {
     document.getElementById('prog-max-weight').innerText   = Math.max(...weights) + ' kg';
     document.getElementById('progression-stats').classList.remove('hidden');
     const list = document.getElementById('progression-list');
-       list.innerHTML = records.slice().reverse().map(r => {
+         list.innerHTML = records.slice().reverse().map(r => {
         const isRec = r.weight === Math.max(...weights);
+        
+        // Encontra a sessão e o index da série no banco
+        const session = DB.history.find(h => h.date === r.dateOriginal); // Precisamos do date original
+        let setIdx = 0;
+        if (session) {
+            // Acha o index exato dessa série no array
+            setIdx = session.sets.findIndex(s => s.exName === exName && s.actualWeight === r.weight && s.actualReps === r.reps);
+        }
+
         return `<div class="prog-item" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
             <div class="prog-date">
                 <span class="day">${r.date}</span>
@@ -898,7 +995,7 @@ function loadExerciseProgression(exName) {
             <div style="display:flex; align-items:center; gap: 10px;">
                 <span class="prog-weight">${r.weight} kg</span>
                 ${isRec ? '<span class="prog-record"><i class="fa-solid fa-trophy"></i> Recorde</span>' : ''}
-                <button class="btn-action btn-delete" onclick="confirmDeleteHistory('${r.id}')" style="padding: 6px 10px;" title="Excluir este treino">
+                <button class="btn-action btn-delete" onclick="openDeleteOptions('${session.id}', '${exName}', ${setIdx})" style="padding: 6px 10px;" title="Excluir">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
             </div>
