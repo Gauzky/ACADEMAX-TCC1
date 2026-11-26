@@ -3,7 +3,7 @@
   "appName": "AcadeMax",
   "webDir": "www",
   "server": {
-    "url": "https://academaxx.com.br",
+    "url": "https://academaxx.com.br/login.html",
     "cleartext": true
   }
 }
