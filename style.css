@@ -298,18 +298,103 @@ input::placeholder { color: var(--text-3); }
 select { cursor: pointer; }
 
 /* === TREINOS === */
-.workouts-list { display: flex; flex-direction: column; gap: 10px; }
-.workout-item {
-    background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: var(--r-lg); padding: 16px;
-    transition: border-color 0.2s, transform 0.15s;
-}
-.workout-item:hover { border-color: var(--accent-border); transform: translateY(-1px); }
-.workout-info h3 { font-size: 15px; font-weight: 600; color: var(--text-1); margin-bottom: 3px; }
-.workout-info p  { font-size: 13px; color: var(--text-2); }
-.workout-actions { display: flex; gap: 8px; margin-top: 12px; }
-.workout-actions .btn-action { flex: 1; justify-content: center; }
+/* === TREINOS === */
+.workouts-list { display: flex; flex-direction: column; gap: 12px; }
 
+.workout-item {
+    background: var(--bg-card); 
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg); 
+    padding: 16px 20px;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.workout-item:hover { 
+    border-color: var(--accent-border); 
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.workout-info h3 { 
+    font-size: 18px; 
+    font-weight: 700; 
+    color: var(--text-1); 
+    margin-bottom: 4px; 
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+.workout-info p { 
+    font-size: 13px; 
+    color: var(--text-3); 
+}
+
+.workout-actions { 
+    display: flex; 
+    gap: 8px; 
+    align-items: center;
+}
+
+/* Botões Base */
+.workout-actions .btn-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border-radius: var(--r-md);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+    border: 1px solid transparent;
+}
+
+/* Estilo: Editar */
+.workout-actions .btn-edit {
+    background: var(--bg-hover);
+    color: var(--text-1);
+    border-color: var(--border);
+    flex: 1; /* Ocupa espaço no mobile */
+}
+.workout-actions .btn-edit:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Estilo: Lixeira (Apenas ícone) */
+.workout-actions .btn-delete {
+    background: var(--danger-muted);
+    color: var(--danger);
+    border-color: rgba(239,68,68,0.2);
+    padding: 10px 14px;
+    flex: none; /* Não estica */
+}
+.workout-actions .btn-delete:hover { background: var(--danger); color: #fff; }
+
+/* Estilo: Iniciar (Destaque) */
+.workout-actions .btn-start {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    flex: 1.5; /* Um pouco maior que o editar */
+}
+.workout-actions .btn-start:hover { filter: brightness(1.1); transform: scale(1.02); }
+
+/* Desktop: Alinha tudo na mesma linha (Nome na esquerda, Botões na direita) */
+@media (min-width: 768px) {
+    .workout-item {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .workout-actions {
+        width: auto;
+    }
+    .workout-actions .btn-action {
+        flex: none; /* No desktop, os botões têm o tamanho do próprio conteúdo */
+    }
+}
 /* === TREINO ATIVO === */
 .active-workout-container { text-align: center; padding: 10px 0; }
 .progress-bar-container {
