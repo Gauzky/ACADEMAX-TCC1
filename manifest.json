@@ -3,7 +3,7 @@
   "short_name": "AcadeMax",
   "description": "Gerencie seus treinos de academia com facilidade",
   "id": "/login.html",
-  "start_url": "/login.html",
+ "start_url": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait-primary",
