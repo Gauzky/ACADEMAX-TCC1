@@ -131,10 +131,10 @@
             <p class="subtitle">Acompanhe sua evolução, gerencie seus treinos e alcance seus objetivos com a plataforma definitiva para atletas e personal trainers.</p>
             
             <div class="cta-group">
-                <button id="install-btn" class="btn-primary">
-                    <i class="fa-solid fa-download"></i> Baixar para o Celular
-                </button>
-                
+             <a href="/academax.apk" download class="btn-primary" style="text-decoration: none;">
+    <i class="fa-brands fa-android"></i> Baixar App (Android)
+</a>
+<p style="font-size: 11px; color: #a1a1aa; margin-top: 8px;">Disponível apenas para Android</p>
                 <a href="/app" class="btn-secondary">
                     <i class="fa-solid fa-arrow-right-to-bracket"></i> Abrir o AcadeMax
                 </a>
@@ -142,52 +142,6 @@
         </div>
     </section>
 
-    <script>
-        let deferredPrompt;
-        const installBtn = document.getElementById('install-btn');
-
-        // Função para mostrar o Toast elegante
-        function showToast(messageHTML) {
-            let toast = document.getElementById('academax-toast');
-            if (!toast) {
-                toast = document.createElement('div');
-                toast.id = 'academax-toast';
-                document.body.appendChild(toast);
-            }
-            toast.innerHTML = messageHTML;
-            toast.classList.add('show');
-            
-            // Esconde o toast após 7 segundos
-            clearTimeout(toast._timeout);
-            toast._timeout = setTimeout(() => {
-                toast.classList.remove('show');
-            }, 7000);
-        }
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-        });
-
-        installBtn.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                // Se o navegador suportar instalação automática
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    installBtn.innerHTML = '<i class="fa-solid fa-check"></i> Instalado!';
-                }
-                deferredPrompt = null;
-            } else {
-                // Se o navegador não suportar, mostra o tutorial no Toast
-                showToast(`
-                    <p style="font-weight:700; color:var(--accent);"><i class="fa-solid fa-mobile-screen"></i> Como instalar o AcadeMax</p>
-                    <p>📱 <strong>Android:</strong> Menu (3 pontinhos) > "Instalar aplicativo".</p>
-                    <p>📱 <strong>iPhone:</strong> Compartilhar > "Adicionar à Tela de Início".</p>
-                    <p>💻 <strong>PC:</strong> Clique no ícone de instalação na barra de endereços.</p>
-                `);
-            }
-        });
-    </script>
+   
 </body>
 </html>
