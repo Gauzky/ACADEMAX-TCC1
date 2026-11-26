@@ -289,6 +289,26 @@ function renderWorkouts() {
     });
 }
 
+function confirmDeleteWorkout(id) {
+    const w = DB.workouts.find(x => x.id === id);
+    showConfirm('Excluir treino', `Excluir "${w?.name}"? Essa ação não pode ser desfeita.`, '🗑️', () => deleteWorkout(id));
+}
+
+async function deleteWorkout(id) {
+    try {
+        // Apaga do banco de dados
+        await authFetch(`${API}/workouts/${id}`, { method: 'DELETE' });
+        
+        // Remove da tela
+        DB.workouts = DB.workouts.filter(w => w.id !== id);
+        renderWorkouts();
+        showToast('Treino excluído!', 'success');
+    } catch (err) {
+        showToast('Erro ao excluir no servidor.', 'error');
+        console.error(err);
+    }
+}
+
 function renderHistory() {
     const list = document.getElementById('history-list');
     if (DB.history.length === 0) {
