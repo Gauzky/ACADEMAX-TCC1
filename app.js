@@ -349,47 +349,71 @@ function openDeleteOptions(sessionId, exName = null, setIdx = null) {
     document.getElementById('confirm-dialog').classList.remove('hidden');
 }
 
-// 1. Excluir apenas a Série
-async function deleteSpecificSet(sessionId, exName, setIdx) {
+// 1. Abre o modal perguntando o que quer excluir
+function openDeleteOptions(sessionId, exName = null, setIdx = null) {
+    const confirmDialog = document.getElementById('confirm-dialog');
+    const actionsDiv = confirmDialog.querySelector('.confirm-dialog-actions');
+    
+    actionsDiv.innerHTML = `<button class="btn-ghost" onclick="cancelConfirm()">Cancelar</button>`;
+
+    if (exName !== null && setIdx !== null) {
+        // Se clicou na Evolução, mostra as 3 opções
+        actionsDiv.innerHTML += `<button class="btn-danger" onclick="deleteSpecificSet('${sessionId}', ${setIdx})">Série</button>`;
+        actionsDiv.innerHTML += `<button class="btn-danger" onclick="deleteSpecificExercise('${sessionId}', '${exName}')">Exercício</button>`;
+        actionsDiv.innerHTML += `<button class="btn-danger" onclick="deleteWholeWorkout('${sessionId}')">Treino Inteiro</button>`;
+        
+        document.getElementById('confirm-title').innerText = 'O que excluir?';
+        document.getElementById('confirm-message').innerHTML = `Você está no exercício <strong>${exName}</strong>.<br>Escolha o nível de exclusão:`;
+    } else {
+        // Se clicou no Histórico, só pode apagar o treino inteiro
+        actionsDiv.innerHTML += `<button class="btn-danger" onclick="deleteWholeWorkout('${sessionId}')">Excluir Treino</button>`;
+        document.getElementById('confirm-title').innerText = 'Excluir Treino';
+        document.getElementById('confirm-message').innerText = 'Tem certeza que deseja apagar este treino inteiro do histórico?';
+    }
+
+    document.getElementById('confirm-icon').innerText = '🗑️';
+    document.getElementById('confirm-dialog').classList.remove('hidden');
+}
+
+// 2. Excluir apenas a Série
+async function deleteSpecificSet(sessionId, setIdx) {
     document.getElementById('confirm-dialog').classList.add('hidden');
     const session = DB.history.find(h => h.id === sessionId);
     if (!session) return;
 
-    // Remove a série específica
-    const ex = session.sets.find(s => s.exName === exName);
-    if (ex) {
-        session.sets.splice(setIdx, 1);
-        // Se o exercício ficar sem séries, remove ele todo
-        const stillHasSets = session.sets.some(s => s.exName === exName);
-        if (!stillHasSets) {
-            session.sets = session.sets.filter(s => s.exName !== exName);
-        }
+    // Remove a série pelo índice exato
+    session.sets.splice(setIdx, 1);
+    
+    // Se o array de sets ficou vazio, apaga o treino inteiro
+    if (session.sets.length === 0) {
+        return deleteWholeWorkout(sessionId);
     }
 
-    // Recalcula o volume do treino
+    // Recalcula o volume
     session.volume = session.sets.reduce((acc, s) => acc + (s.actualReps * s.actualWeight), 0);
 
     await saveUpdatedHistory(session);
     showToast('Série excluída!', 'success');
 }
 
-// 2. Excluir um Exercício Inteiro
+// 3. Excluir um Exercício Inteiro (remove todas as séries dele)
 async function deleteSpecificExercise(sessionId, exName) {
     document.getElementById('confirm-dialog').classList.add('hidden');
     const session = DB.history.find(h => h.id === sessionId);
     if (!session) return;
 
-    // Remove todas as séries do exercício
     session.sets = session.sets.filter(s => s.exName !== exName);
     
-    // Recalcula o volume
-    session.volume = session.sets.reduce((acc, s) => acc + (s.actualReps * s.actualWeight), 0);
+    if (session.sets.length === 0) {
+        return deleteWholeWorkout(sessionId);
+    }
 
+    session.volume = session.sets.reduce((acc, s) => acc + (s.actualReps * s.actualWeight), 0);
     await saveUpdatedHistory(session);
-    showToast(`Exercício ${exName} excluído!`, 'success');
+    showToast(`Exercício excluído!`, 'success');
 }
 
-// 3. Excluir o Treino Inteiro
+// 4. Excluir o Treino Inteiro (da aba histórico ou evolução)
 async function deleteWholeWorkout(sessionId) {
     document.getElementById('confirm-dialog').classList.add('hidden');
     try {
@@ -397,46 +421,29 @@ async function deleteWholeWorkout(sessionId) {
         DB.history = DB.history.filter(h => h.id !== sessionId);
         renderHistory();
         loadExerciseProgression(document.getElementById('progression-select')?.value);
-        showToast('Treino inteiro excluído!', 'success');
+        showToast('Treino excluído do histórico!', 'success');
     } catch (e) {
         showToast('Erro ao excluir treino.', 'error');
     }
 }
 
-// Função auxiliar para salvar a atualização no banco
+// 5. Salva a atualização no banco (PUT)
 async function saveUpdatedHistory(session) {
     try {
-        // Usamos PUT para atualizar o histórico no backend
         await authFetch(`${API}/history/${session.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(session)
+            body: JSON.stringify({ volume: session.volume, sets: session.sets })
         });
-        // Atualiza a tela e o gráfico
+        
+        // Atualiza a tela de evolução e o histórico
         renderHistory();
         loadExerciseProgression(document.getElementById('progression-select')?.value);
     } catch (e) {
         showToast('Erro ao atualizar o banco.', 'error');
+        console.error(e);
     }
 }
-
-function confirmDeleteWorkout(id) {
-    const w = DB.workouts.find(x => x.id === id);
-    showConfirm('Excluir treino', `Excluir "${w?.name}"? Essa ação não pode ser desfeita.`, '🗑️', () => deleteWorkout(id));
-}
-
-async function deleteWorkout(id) {
-    try {
-        const res = await authFetch(`${API}/workouts/${id}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error();
-    } catch (err) {
-        showToast('Erro ao excluir no servidor.', 'error');
-    }
-    DB.workouts = DB.workouts.filter(w => w.id !== id);
-    renderWorkouts();
-    showToast('Treino excluído!', 'success');
-}
-
 // =============================================
 // === VÍDEO INLINE ===
 // =============================================
@@ -961,51 +968,136 @@ function calcTimeStats(records) {
 
 function loadExerciseProgression(exName) {
     if (!exName) { document.getElementById('progression-stats').classList.add('hidden'); return; }
+    
     const records = [];
-    DB.history.forEach(s => s.sets.forEach(set => {
-        if (set.exName === exName && set.actualWeight)
-           records.push({ id: s.id, date: new Date(s.date).toLocaleDateString('pt-BR'), weight: set.actualWeight, reps: set.actualReps });
-       }));
+    // Agora pegamos o ID da sessão e o index exato da série no array
+    DB.history.forEach(session => {
+        session.sets.forEach((set, idx) => {
+            if (set.exName === exName && set.actualWeight) {
+                records.push({ 
+                    sessionId: session.id, 
+                    setIdx: idx, 
+                    date: new Date(session.date).toLocaleDateString('pt-BR'), 
+                    weight: set.actualWeight, 
+                    reps: set.actualReps 
+                });
+            }
+        });
+    });
+
     if (records.length === 0) {
         document.getElementById('progression-stats').classList.add('hidden');
         document.getElementById('progression-list').innerHTML = '<p class="subtitle">Sem dados para este exercício.</p>';
         return;
     }
+
     const weights = records.map(r => r.weight);
     document.getElementById('prog-start-weight').innerText = weights[0] + ' kg';
     document.getElementById('prog-max-weight').innerText   = Math.max(...weights) + ' kg';
     document.getElementById('progression-stats').classList.remove('hidden');
+    
     const list = document.getElementById('progression-list');
-         list.innerHTML = records.slice().reverse().map(r => {
+    
+    // Desenha a lista com o botão passando os dados corretos
+    list.innerHTML = records.slice().reverse().map(r => {
         const isRec = r.weight === Math.max(...weights);
-        
-        // Encontra a sessão e o index da série no banco
-        const session = DB.history.find(h => h.date === r.dateOriginal); // Precisamos do date original
-        let setIdx = 0;
-        if (session) {
-            // Acha o index exato dessa série no array
-            setIdx = session.sets.findIndex(s => s.exName === exName && s.actualWeight === r.weight && s.actualReps === r.reps);
-        }
-
-        return `<div class="prog-item" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+        return `<div class="prog-item" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px; padding: 12px; background: var(--bg-card); border-radius: 8px;">
             <div class="prog-date">
-                <span class="day">${r.date}</span>
-                <span class="reps">${r.reps} reps</span>
+                <span class="day" style="font-weight:700; font-size:14px;">${r.date}</span>
+                <span class="reps" style="font-size:12px; color:var(--text-3);">${r.reps} reps</span>
             </div>
-            <div style="display:flex; align-items:center; gap: 10px;">
-                <span class="prog-weight">${r.weight} kg</span>
-                ${isRec ? '<span class="prog-record"><i class="fa-solid fa-trophy"></i> Recorde</span>' : ''}
-                <button class="btn-action btn-delete" onclick="openDeleteOptions('${session.id}', '${exName}', ${setIdx})" style="padding: 6px 10px;" title="Excluir">
+            <div style="display:flex; align-items:center; gap: 8px;">
+                <span class="prog-weight" style="color:var(--success); font-weight:700;">${r.weight} kg</span>
+                ${isRec ? '<span class="prog-record" style="font-size:10px; background:var(--accent); color:#fff; padding:2px 6px; border-radius:10px;"><i class="fa-solid fa-trophy"></i> Recorde</span>' : ''}
+                <button class="btn-action btn-delete" onclick="openDeleteOptions('${r.sessionId}', '${exName}', ${r.setIdx})" style="padding: 6px 10px;" title="Excluir">
                     <i class="fa-solid fa-trash-can"></i>
                 </button>
             </div>
         </div>`;
     }).join('');
 
+    // O resto do código do gráfico (Chart.js) continua igual...
     const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6366f1';
     const isLight = document.body.classList.contains('light');
     const tickColor = isLight ? '#71717a' : '#52525b';
     if (progressionChart) progressionChart.destroy();
+    
+    progressionChart = new Chart(document.getElementById('progressionChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: records.map(r => r.date),
+            datasets: [{
+                label: 'Carga (kg)', data: weights,
+                borderColor: accent, backgroundColor: `${accent}18`,
+                borderWidth: 2.5, fill: true, tension: 0.3,
+                pointBackgroundColor: accent, pointRadius: 3
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: isLight ? '#18181b' : '#f4f4f5', font: { family: 'DM Sans' } } } },
+            scales: {
+                y: { beginAtZero: false, grid: { color: 'rgba(128,128,128,0.08)' }, ticks: { color: tickColor, font: { family: 'DM Sans', size: 11 } } },
+                x: { grid: { display: false }, ticks: { color: tickColor, font: { family: 'DM Sans', size: 11 } } }
+            }
+        }
+    });
+}function loadExerciseProgression(exName) {
+    if (!exName) { document.getElementById('progression-stats').classList.add('hidden'); return; }
+    
+    const records = [];
+    // Agora pegamos o ID da sessão e o index exato da série no array
+    DB.history.forEach(session => {
+        session.sets.forEach((set, idx) => {
+            if (set.exName === exName && set.actualWeight) {
+                records.push({ 
+                    sessionId: session.id, 
+                    setIdx: idx, 
+                    date: new Date(session.date).toLocaleDateString('pt-BR'), 
+                    weight: set.actualWeight, 
+                    reps: set.actualReps 
+                });
+            }
+        });
+    });
+
+    if (records.length === 0) {
+        document.getElementById('progression-stats').classList.add('hidden');
+        document.getElementById('progression-list').innerHTML = '<p class="subtitle">Sem dados para este exercício.</p>';
+        return;
+    }
+
+    const weights = records.map(r => r.weight);
+    document.getElementById('prog-start-weight').innerText = weights[0] + ' kg';
+    document.getElementById('prog-max-weight').innerText   = Math.max(...weights) + ' kg';
+    document.getElementById('progression-stats').classList.remove('hidden');
+    
+    const list = document.getElementById('progression-list');
+    
+    // Desenha a lista com o botão passando os dados corretos
+    list.innerHTML = records.slice().reverse().map(r => {
+        const isRec = r.weight === Math.max(...weights);
+        return `<div class="prog-item" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px; padding: 12px; background: var(--bg-card); border-radius: 8px;">
+            <div class="prog-date">
+                <span class="day" style="font-weight:700; font-size:14px;">${r.date}</span>
+                <span class="reps" style="font-size:12px; color:var(--text-3);">${r.reps} reps</span>
+            </div>
+            <div style="display:flex; align-items:center; gap: 8px;">
+                <span class="prog-weight" style="color:var(--success); font-weight:700;">${r.weight} kg</span>
+                ${isRec ? '<span class="prog-record" style="font-size:10px; background:var(--accent); color:#fff; padding:2px 6px; border-radius:10px;"><i class="fa-solid fa-trophy"></i> Recorde</span>' : ''}
+                <button class="btn-action btn-delete" onclick="openDeleteOptions('${r.sessionId}', '${exName}', ${r.setIdx})" style="padding: 6px 10px;" title="Excluir">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </div>
+        </div>`;
+    }).join('');
+
+    // O resto do código do gráfico (Chart.js) continua igual...
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6366f1';
+    const isLight = document.body.classList.contains('light');
+    const tickColor = isLight ? '#71717a' : '#52525b';
+    if (progressionChart) progressionChart.destroy();
+    
     progressionChart = new Chart(document.getElementById('progressionChart').getContext('2d'), {
         type: 'line',
         data: {
@@ -1027,7 +1119,6 @@ function loadExerciseProgression(exName) {
         }
     });
 }
-
 // =============================================
 // === CALCULADORA DE IMC ===
 // =============================================

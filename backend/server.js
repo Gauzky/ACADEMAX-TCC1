@@ -459,6 +459,7 @@ app.get('/api/history/:userId', authMiddleware, async (req, res) => {
 });
 
 // === ATUALIZAR HISTÓRICO (Para exclusão de séries) ===
+// === ATUALIZAR HISTÓRICO (Para exclusão de séries) ===
 app.put('/api/history/:id', authMiddleware, async (req, res) => {
     try {
         const { id } = req.params;
@@ -475,13 +476,31 @@ app.put('/api/history/:id', authMiddleware, async (req, res) => {
             where: { id },
             data: { 
                 volume: volume,
-                sets: JSON.stringify(sets) // Salva as séries atualizadas
+                sets: JSON.stringify(sets) 
             }
         });
 
         res.json(updated);
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: 'Erro ao atualizar histórico' });
+    }
+});
+
+// === EXCLUIR HISTÓRICO INTEIRO ===
+app.delete('/api/history/:id', authMiddleware, async (req, res) => {
+    try {
+        const session = await prisma.workoutSession.findUnique({ where: { id: req.params.id } });
+        if (!session) return res.status(404).json({ error: 'Registro não encontrado' });
+        
+        if (session.userId !== req.user.id && !req.user.isAdmin) {
+            return res.status(403).json({ error: 'Acesso negado' });
+        }
+
+        await prisma.workoutSession.delete({ where: { id: req.params.id } });
+        res.json({ message: 'Registro excluído com sucesso' });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao excluir registro' });
     }
 });
 
